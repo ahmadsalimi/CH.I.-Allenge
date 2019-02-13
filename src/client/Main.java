@@ -30,6 +30,7 @@ public class Main {
         if(GLOBAL_VERBOSE_FLAG || Arrays.asList(args).contains("--verbose")) {
             Log.DEV_MODE = true;
             Log.LOG_LEVEL = Log.VERBOSE;
+
             Log.outputFile = new FileOutputStream("client.log", false);
         }
 
@@ -46,9 +47,8 @@ public class Main {
         String[] args = new String[argNames.length];
         for (int i = 0; i < argNames.length; i++) {
             args[i] = System.getenv(argNames[i]);
-            if (args[i] == null) {
+            if (args[i] == null)
                 args[i] = argDefaults[i];
-            }
             Log.i("PARAM", argNames[i] + "=" + args[i]);
         }
         return args;

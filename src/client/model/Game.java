@@ -8,6 +8,7 @@ import common.network.data.Message;
 import common.util.Log;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.function.Consumer;
@@ -36,7 +37,8 @@ public class Game implements World {
     private final String TAG = "GAME";
 
 
-    public Game(Consumer<Message> sender) {
+    public Game(Consumer<Message> sender)
+    {
         this.sender = sender;
     }
 
@@ -79,8 +81,6 @@ public class Game implements World {
         Log.d(TAG, gameConstants.toString());
 
         map = initJson.getMap();
-
-
         Log.d(TAG, map.toString());
         map.calculateZones();
 
@@ -287,7 +287,7 @@ public class Game implements World {
     @Override
     public void castAbility(int heroId, AbilityName abilityName, int targetCellRow, int targetCellColumn) {
         Event event = new Event("cast", new Object[]{heroId, abilityName.toString(), targetCellRow,
-                targetCellColumn});
+                targetCellColumn, currentTurn});
         sender.accept(new Message(Event.EVENT, event));
         Log.d(TAG, "Request: cast Ability @ heroId:" + heroId + " abilityName:" + abilityName +
                 " targetCellRow:" + targetCellRow + " targetCellColumn:" + targetCellColumn);
@@ -337,8 +337,10 @@ public class Game implements World {
     }
 
     @Override
-    public void moveHero(int heroId, Direction direction) {
-        Event event = new Event("move", new Object[]{heroId, Json.GSON.toJson(direction)});
+    public void moveHero(int heroId, Direction direction)
+    {
+        Event event = new Event("move", new Object[]{heroId, Json.GSON.toJson(direction), currentTurn,
+                movePhaseNum});
         sender.accept(new Message(Event.EVENT, event));
         Log.d(TAG, "Request: move Hero @ heroId:" + heroId + " direction:" + direction);
     }
@@ -350,8 +352,9 @@ public class Game implements World {
     }
 
     @Override
-    public void pickHero(HeroName heroName) {
-        Event event = new Event("pick", new Object[]{heroName.toString()});
+    public void pickHero(HeroName heroName)
+    {
+        Event event = new Event("pick", new Object[]{heroName.toString(), currentTurn});
         sender.accept(new Message(Event.EVENT, event));
         Log.d(TAG, "Request: pick Hero @ heroName:" + heroName);
     }
@@ -375,8 +378,8 @@ public class Game implements World {
      * @return
      */
     @Override
-    public Direction[] getPathMoveDirections(Cell startCell, Cell endCell) {
-        if (startCell == null || endCell == null || startCell == endCell ||
+    public Direction[] getPathMoveDirections(Cell startCell, Cell endCell, Cell[] blockedCells) {
+        if (startCell == null || endCell == null || startCell == endCell || blockedCells == null ||
                 startCell.isWall() || endCell.isWall()) return new Direction[0];
         HashMap<Cell, Pair<Cell, Direction>> lastMoveInfo = new HashMap<>(); // saves parent cell and direction to go from parent cell to current cell
         Cell[] bfsQueue = new Cell[map.getRowNum() * map.getColumnNum() + 10];
@@ -384,6 +387,10 @@ public class Game implements World {
         int queueTail = 0;
 
         lastMoveInfo.put(startCell, new Pair<>(null, null));
+        for (Cell cell : blockedCells) {
+            lastMoveInfo.put(cell, new Pair<>(null, null));
+        }
+
         bfsQueue[queueTail++] = startCell;
 
         while (queueHead != queueTail) {
@@ -406,6 +413,37 @@ public class Game implements World {
             }
         }
         return new Direction[0];
+    }
+
+    @Override
+    public Direction[] getPathMoveDirections(int startCellRow, int startCellColumn, int endCellRow, int endCellColumn,
+                                             Cell[] blockedCells) {
+        if (!map.isInMap(startCellRow, startCellColumn) || !map.isInMap(endCellRow, endCellColumn))
+            return new Direction[0];
+        return getPathMoveDirections(map.getCell(startCellRow, startCellColumn),
+                map.getCell(endCellRow, endCellColumn), blockedCells);
+    }
+
+    @Override
+    public Direction[] getPathMoveDirections(Cell startCell, Cell endCell, Collection<Cell> blockedCells) {
+        if (blockedCells == null) {
+            return new Direction[0];
+        }
+        return getPathMoveDirections(startCell, endCell, blockedCells.toArray(new Cell[0]));
+    }
+
+    @Override
+    public Direction[] getPathMoveDirections(int startCellRow, int startCellColumn, int endCellRow, int endCellColumn,
+                                             Collection<Cell> blockedCells) {
+        if (!map.isInMap(startCellRow, startCellColumn) || !map.isInMap(endCellRow, endCellColumn))
+            return new Direction[0];
+        return getPathMoveDirections(map.getCell(startCellRow, startCellColumn),
+                map.getCell(endCellRow, endCellColumn), blockedCells);
+    }
+
+    @Override
+    public Direction[] getPathMoveDirections(Cell startCell, Cell endCell) {
+        return getPathMoveDirections(startCell, endCell, new Cell[0]);
     }
 
     @Override
