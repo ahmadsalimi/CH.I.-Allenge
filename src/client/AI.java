@@ -19,11 +19,13 @@ class FlagDodgeOrWalk {
   int[] targetCell = new int[2];
 }
 
-
 public class AI {
   private final int WALL = 99;
-  private CellInformation[][] cellInformation;
   private FlagDodgeOrWalk[] flagDOW;
+  private int[] championSelect = {0, 1, 3, 0};
+  private CellInformation[][] initialCellInformation;
+  private int targetRow = 500, targetColumn = 500;
+  private boolean targetReach[] = {false, false, false, false};
 
   private int absolute(int x) {
     return x >= 0 ? x : -x;
@@ -41,17 +43,17 @@ public class AI {
       int[] finalTargetCell = new int[2];
       for (int column = cell[1] - 4; column <= cell[1] + 4; column++) {
         int rowUp = cell[0] + 4 - absolute(column - cell[1]);
-        if (map.isInMap(rowUp, column) && !map.getCell(rowUp, column).isWall() && !cellInformation[rowUp][column].isReservedForDodge) {
-          if (maxTargetDistance <= cellInformation[cell[0]][cell[1]].layerNumber - cellInformation[rowUp][column].layerNumber) {
-            maxTargetDistance = cellInformation[cell[0]][cell[1]].layerNumber - cellInformation[rowUp][column].layerNumber;
+        if (map.isInMap(rowUp, column) && !map.getCell(rowUp, column).isWall() && !initialCellInformation[rowUp][column].isReservedForDodge) {
+          if (maxTargetDistance <= initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowUp][column].layerNumber) {
+            maxTargetDistance = initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowUp][column].layerNumber;
             finalTargetCell[0] = rowUp;
             finalTargetCell[1] = column;
           }
         }
         int rowDown = cell[0] - 4 + absolute(column - cell[1]);
-        if (map.isInMap(rowDown, column) && !map.getCell(rowDown, column).isWall() && !cellInformation[rowDown][column].isReservedForDodge) {
-          if (maxTargetDistance <= cellInformation[cell[0]][cell[1]].layerNumber - cellInformation[rowDown][column].layerNumber) {
-            maxTargetDistance = cellInformation[cell[0]][cell[1]].layerNumber - cellInformation[rowDown][column].layerNumber;
+        if (map.isInMap(rowDown, column) && !map.getCell(rowDown, column).isWall() && !initialCellInformation[rowDown][column].isReservedForDodge) {
+          if (maxTargetDistance <= initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowDown][column].layerNumber) {
+            maxTargetDistance = initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowDown][column].layerNumber;
             finalTargetCell[0] = rowDown;
             finalTargetCell[1] = column;
           }
@@ -62,7 +64,7 @@ public class AI {
         flagDOW[i].targetCell[0] = finalTargetCell[0];
         flagDOW[i].targetCell[1] = finalTargetCell[1];
         flagDOW[i].flag = true;
-        cellInformation[finalTargetCell[0]][finalTargetCell[1]].isReservedForDodge = true;
+        initialCellInformation[finalTargetCell[0]][finalTargetCell[1]].isReservedForDodge = true;
       }
       System.out.println(flagDOW[i].flag);
     }
@@ -72,14 +74,27 @@ public class AI {
   private void setCellsInformation(World world) {
     Map map = world.getMap();
     int row = map.getRowNum(), column = map.getColumnNum();
-    cellInformation = new CellInformation[row][column];
-    for (int i = 0; i < row; i++) {
-      for (int j = 0; j < column; j++) {
-        cellInformation[i][j] = new CellInformation();
-        if (map.getCell(i, j).isInObjectiveZone()) cellInformation[i][j].setCellInfo(0);
-        if (map.getCell(i, j).isWall()) cellInformation[i][j].setCellInfo(WALL);
+    initialCellInformation = new CellInformation[row][column];
+    int respawnRow = map.getMyRespawnZone()[0].getRow(), respawnColumn = map.getMyRespawnZone()[0].getColumn();
+    for (int i = 2; i < row - 2; i++) {
+      for (int j = 2; j < column - 2; j++) {
+        if (map.getCell(i, j).isInObjectiveZone() && map.getCell(i - 2, j).isInObjectiveZone() && map.getCell(i + 2, j).isInObjectiveZone() && map.getCell(i - 2, j - 2).isInObjectiveZone() && map.getCell(i + 2, j - 2).isInObjectiveZone() && map.getCell(i - 2, j + 2).isInObjectiveZone() && map.getCell(i + 2, j + 2).isInObjectiveZone() && map.getCell(i, j - 2).isInObjectiveZone() && map.getCell(i, j + 2).isInObjectiveZone()) {
+          if (absolute(targetRow - respawnRow) + absolute(targetColumn - respawnColumn) >
+                  absolute(i - respawnRow) + absolute(j - respawnColumn)) {
+            targetColumn = j;
+            targetRow = i;
+          }
+        }
       }
     }
+    System.out.printf("res:%d %d%ntarget:%d %d%n", respawnColumn, respawnRow, targetColumn, targetRow);
+    for (int i = 0; i < row; i++) {
+      for (int j = 0; j < column; j++) {
+        initialCellInformation[i][j] = new CellInformation();
+        if (map.getCell(i, j).isWall()) initialCellInformation[i][j].setCellInfo(WALL);
+      }
+    }
+    initialCellInformation[targetRow][targetColumn].setCellInfo(0);
     boolean allCellsIsSet = false;
     int layer = 0;
     while (!allCellsIsSet) {
@@ -87,19 +102,19 @@ public class AI {
       for (int i = 0; i < row; i++) {
         for (int j = 0; j < column; j++) {
           if (!map.getCell(i, j).isWall()) {
-            if (cellInformation[i][j].isLayerSet) {
-              if (layer == cellInformation[i][j].layerNumber) {
-                if (map.isInMap(i + 1, j) && !cellInformation[i + 1][j].isLayerSet) {
-                  cellInformation[i + 1][j].setCellInfo(layer + 1);
+            if (initialCellInformation[i][j].isLayerSet) {
+              if (layer == initialCellInformation[i][j].layerNumber) {
+                if (map.isInMap(i + 1, j) && !initialCellInformation[i + 1][j].isLayerSet) {
+                  initialCellInformation[i + 1][j].setCellInfo(layer + 1);
                 }
-                if (map.isInMap(i - 1, j) && !cellInformation[i - 1][j].isLayerSet) {
-                  cellInformation[i - 1][j].setCellInfo(layer + 1);
+                if (map.isInMap(i - 1, j) && !initialCellInformation[i - 1][j].isLayerSet) {
+                  initialCellInformation[i - 1][j].setCellInfo(layer + 1);
                 }
-                if (map.isInMap(i, j + 1) && !cellInformation[i][j + 1].isLayerSet) {
-                  cellInformation[i][j + 1].setCellInfo(layer + 1);
+                if (map.isInMap(i, j + 1) && !initialCellInformation[i][j + 1].isLayerSet) {
+                  initialCellInformation[i][j + 1].setCellInfo(layer + 1);
                 }
-                if (map.isInMap(i, j - 1) && !cellInformation[i][j - 1].isLayerSet) {
-                  cellInformation[i][j - 1].setCellInfo(layer + 1);
+                if (map.isInMap(i, j - 1) && !initialCellInformation[i][j - 1].isLayerSet) {
+                  initialCellInformation[i][j - 1].setCellInfo(layer + 1);
                 }
               }
             } else allCellsIsSet = false;
@@ -110,10 +125,73 @@ public class AI {
     }
     for (int i = 0; i < row; i++) {
       for (int j = 0; j < column; j++) {
-        System.out.printf("%2d ", cellInformation[i][j].layerNumber);
+        System.out.printf("%2d ", initialCellInformation[i][j].layerNumber);
       }
       System.out.println();
     }
+  }
+
+  public Direction FindPath(World world, int heroNum, Cell targetCell) {
+    Map map = world.getMap();
+    int row = map.getRowNum(), column = map.getColumnNum();
+    CellInformation[][] tempCellInformation = new CellInformation[row][column];
+    for (int i = 0; i < row; i++) {
+      for (int j = 0; j < column; j++) {
+        tempCellInformation[i][j] = new CellInformation();
+        if (map.getCell(i, j).isWall()) tempCellInformation[i][j].setCellInfo(WALL);
+      }
+    }
+
+    if (heroNum != 0)
+      tempCellInformation[world.getMyHeroes()[0].getCurrentCell().getRow()][world.getMyHeroes()[0].getCurrentCell().getColumn()].setCellInfo(WALL);
+    if (heroNum != 1)
+      tempCellInformation[world.getMyHeroes()[1].getCurrentCell().getRow()][world.getMyHeroes()[1].getCurrentCell().getColumn()].setCellInfo(WALL);
+    if (heroNum != 2)
+      tempCellInformation[world.getMyHeroes()[2].getCurrentCell().getRow()][world.getMyHeroes()[2].getCurrentCell().getColumn()].setCellInfo(WALL);
+    if (heroNum != 3)
+      tempCellInformation[world.getMyHeroes()[3].getCurrentCell().getRow()][world.getMyHeroes()[3].getCurrentCell().getColumn()].setCellInfo(WALL);
+
+    tempCellInformation[targetCell.getRow()][targetCell.getColumn()].setCellInfo(0);
+    boolean firstCellIsSet = false;
+    int layer = 0;
+    int firstCellRow = world.getMyHeroes()[heroNum].getCurrentCell().getRow(), firstCellColumn = world.getMyHeroes()[heroNum].getCurrentCell().getColumn();
+    if (firstCellColumn==-1)
+      return Direction.values()[0];
+    while (!tempCellInformation[firstCellRow][firstCellColumn].isLayerSet) {
+      for (int i = 0; i < row; i++) {
+        for (int j = 0; j < column; j++) {
+          if (!map.getCell(i, j).isWall()) {
+            if (tempCellInformation[i][j].isLayerSet) {
+              if (layer == tempCellInformation[i][j].layerNumber) {
+                if (map.isInMap(i + 1, j) && !tempCellInformation[i + 1][j].isLayerSet) {
+                  tempCellInformation[i + 1][j].setCellInfo(layer + 1);
+                }
+                if (map.isInMap(i - 1, j) && !tempCellInformation[i - 1][j].isLayerSet) {
+                  tempCellInformation[i - 1][j].setCellInfo(layer + 1);
+                }
+                if (map.isInMap(i, j + 1) && !tempCellInformation[i][j + 1].isLayerSet) {
+                  tempCellInformation[i][j + 1].setCellInfo(layer + 1);
+                }
+                if (map.isInMap(i, j - 1) && !tempCellInformation[i][j - 1].isLayerSet) {
+                  tempCellInformation[i][j - 1].setCellInfo(layer + 1);
+                }
+              }
+            }
+          }
+        }
+      }
+      layer++;
+    }
+    int firstCellLayerNum = tempCellInformation[firstCellRow][firstCellColumn].layerNumber;
+    if (tempCellInformation[firstCellRow - 1][firstCellColumn].isLayerSet && tempCellInformation[firstCellRow - 1][firstCellColumn].layerNumber < firstCellLayerNum)
+      return Direction.UP;
+    if (tempCellInformation[firstCellRow][firstCellColumn - 1].isLayerSet && tempCellInformation[firstCellRow][firstCellColumn - 1].layerNumber < firstCellLayerNum)
+      return Direction.LEFT;
+    if (tempCellInformation[firstCellRow + 1][firstCellColumn].isLayerSet && tempCellInformation[firstCellRow + 1][firstCellColumn].layerNumber < firstCellLayerNum)
+      return Direction.DOWN;
+    if (tempCellInformation[firstCellRow][firstCellColumn + 1].isLayerSet && tempCellInformation[firstCellRow][firstCellColumn + 1].layerNumber < firstCellLayerNum)
+      return Direction.RIGHT;
+    return Direction.UP;
   }
 
   public void preProcess(World world) {
@@ -122,7 +200,16 @@ public class AI {
   }
 
   public void pickTurn(World world) {
-    world.pickHero(HeroName.HEALER);
+    for (int i = 0; i < 4; i++) {
+      if (championSelect[i] > 0) {
+        championSelect[i]--;
+        if (i == 0) world.pickHero(HeroName.SENTRY);
+        if (i == 1) world.pickHero(HeroName.BLASTER);
+        if (i == 2) world.pickHero(HeroName.HEALER);
+        if (i == 3) world.pickHero(HeroName.GUARDIAN);
+        break;
+      }
+    }
   }
 
   private void printCurrentMap(World world) {
@@ -135,28 +222,38 @@ public class AI {
       for (int j = 0; j < 31; j++) {
         boolean flag = true;
         Cell thisCell = world.getMap().getCell(i, j);
-        if (thisCell.isWall()) System.out.print(ANSI_GREEN + "|#|" + ANSI_RESET);
-        else {
+        if (thisCell.isWall()) {
+          System.out.print(ANSI_GREEN + "|#|" + ANSI_RESET);
+          flag = false;
+        }
+        if (flag) {
           for (Hero hero : world.getMyHeroes()) {
             if (hero.getCurrentCell().equals(thisCell)) {
-              System.out.print(ANSI_CYAN + "\"" + hero.getId() + "\"" + ANSI_RESET);
+              System.out.print(ANSI_CYAN + "H:" + hero.getId() + ANSI_RESET);
               flag = false;
               break;
             }
           }
-          if (!flag) continue;
+        }
+        if (flag) {
           for (Hero hero : world.getOppHeroes()) {
             if (hero.getCurrentCell().equals(thisCell)) {
-              System.out.print(ANSI_RED + "\"" + hero.getId() + "\"" + ANSI_RESET);
+              System.out.print(ANSI_RED + "E:" + hero.getId() + ANSI_RESET);
               flag = false;
               break;
             }
           }
-          if (!flag) continue;
-          if (thisCell.isInVision()) System.out.print(" . ");
-          else if (thisCell.isInObjectiveZone()) System.out.print(ANSI_PURPLE + " * " + ANSI_RESET);
-          else System.out.print("   ");
         }
+        if (flag && thisCell.isInObjectiveZone()) {
+          System.out.print(ANSI_PURPLE + " * " + ANSI_RESET);
+          flag = false;
+        }
+        if (flag && thisCell.isInVision()) {
+          System.out.print(" . ");
+          flag = false;
+        }
+        if (flag)
+          System.out.print("   ");
       }
       if (i < 4) {
         System.out.print(world.getMyHeroes()[i].toString());
@@ -168,46 +265,105 @@ public class AI {
     }
   }
 
-  private boolean firstTimeDodge = true;
-
   public void moveHeroToOBJ(World world, Hero hero) {
     Direction targetDirection = null;
     int cellRow = hero.getCurrentCell().getRow(), cellColumn = hero.getCurrentCell().getColumn();
-    int minLayerNumber = cellInformation[cellRow][cellColumn].layerNumber;
-    int[][] targetCandidates = {
-            {cellRow - 1, cellColumn},
-            {cellRow + 1, cellColumn},
-            {cellRow, cellColumn - 1},
-            {cellRow, cellColumn + 1}
-    };
-    for (int i = 0; i < 4; i++) {
-      if (cellInformation[targetCandidates[i][0]][targetCandidates[i][1]].layerNumber < minLayerNumber) {
-        targetDirection = Direction.values()[i];
-        minLayerNumber = cellInformation[targetCandidates[i][0]][targetCandidates[i][1]].layerNumber;
-      }
+    int mapRow = world.getMap().getRowNum(), mapColumn = world.getMap().getColumnNum();
+    int minLayerNumber = initialCellInformation[cellRow][cellColumn].layerNumber;
+    if (cellRow > 0 && initialCellInformation[cellRow - 1][cellColumn].layerNumber < minLayerNumber && !world.getMap().getCell(cellRow - 1, cellColumn).isWall()) {
+      minLayerNumber = initialCellInformation[cellRow - 1][cellColumn].layerNumber;
+      targetDirection = Direction.UP;
     }
-    System.out.println(hero.getId() + " " + targetDirection + " " + cellInformation[cellRow][cellColumn].layerNumber + " -> " + minLayerNumber);
-    world.moveHero(hero, targetDirection);
+    if (cellColumn > 0 && initialCellInformation[cellRow][cellColumn - 1].layerNumber < minLayerNumber && !world.getMap().getCell(cellRow, cellColumn - 1).isWall()) {
+      minLayerNumber = initialCellInformation[cellRow][cellColumn - 1].layerNumber;
+      targetDirection = Direction.LEFT;
+    }
+    if (cellRow < mapRow - 1 && initialCellInformation[cellRow + 1][cellColumn].layerNumber < minLayerNumber && !world.getMap().getCell(cellRow + 1, cellColumn).isWall()) {
+      minLayerNumber = initialCellInformation[cellRow + 1][cellColumn].layerNumber;
+      targetDirection = Direction.DOWN;
+    }
+    if (cellRow < mapColumn - 1 && initialCellInformation[cellRow][cellColumn + 1].layerNumber < minLayerNumber && !world.getMap().getCell(cellRow, cellColumn + 1).isWall()) {
+      minLayerNumber = initialCellInformation[cellRow][cellColumn + 1].layerNumber;
+      targetDirection = Direction.RIGHT;
+    }
+    System.out.println(hero.getId() + " " + targetDirection + " " + initialCellInformation[cellRow][cellColumn].layerNumber + " -> " + minLayerNumber);
+    //world.moveHero(hero, targetDirection);
+    if (targetDirection != null)
+      world.moveHero(hero, targetDirection);
   }
 
+  private boolean firstTimeDodge = true;
+
   public void moveTurn(World world) {
-    for (Hero hero : world.getMyHeroes()) {
-      boolean isInRespawnZone = false;
-      if (firstTimeDodge) {
-        for (FlagDodgeOrWalk flagDow : flagDOW) {
-          if (flagDow.flag && flagDow.cell[0] == hero.getCurrentCell().getRow() && flagDow.cell[1] == hero.getCurrentCell().getColumn()) {
-            isInRespawnZone = true;
-            break;
+    int enemyNum = 0;
+    double enemyX = 0, enemyY = 0;
+    int battleGroundNum = 0, battleGroundColumn = targetColumn - 1, battleGroundRow = targetRow - 1;
+    Map map = world.getMap();
+        /*
+        |-||0||-|
+        |3||T||1|
+        |-||2||-|
+        */
+    Cell[] targetCells = new Cell[4];
+    targetCells[0] = map.getCell(targetRow - 2, targetColumn);
+    targetCells[1] = map.getCell(targetRow, targetColumn + 2);
+    targetCells[2] = map.getCell(targetRow + 2, targetColumn);
+    targetCells[3] = map.getCell(targetRow, targetColumn - 2);
+
+    Hero enemyHeroes[] = world.getOppHeroes();
+    System.out.printf("E%d %d %d  E%d %d %d  E%d %d %d  E%d %d %d%n", enemyHeroes[0].getId(), enemyHeroes[0].getCurrentCell().getRow(), enemyHeroes[0].getCurrentCell().getColumn(),
+            enemyHeroes[1].getId(), enemyHeroes[1].getCurrentCell().getRow(), enemyHeroes[1].getCurrentCell().getColumn(),
+            enemyHeroes[2].getId(), enemyHeroes[2].getCurrentCell().getRow(), enemyHeroes[2].getCurrentCell().getColumn(),
+            enemyHeroes[3].getId(), enemyHeroes[3].getCurrentCell().getRow(), enemyHeroes[3].getCurrentCell().getColumn());
+
+    for (int i = 0; i < 4; i++) {
+      Hero hero = world.getMyHeroes()[i];
+      if (hero.getCurrentCell().getRow() != -1 && initialCellInformation[hero.getCurrentCell().getRow()][hero.getCurrentCell().getColumn()].layerNumber < 5)
+        targetReach[i] = true;
+      if (!targetReach[i]) {
+        boolean isInRespawnZone = false;
+        if (firstTimeDodge) {
+          for (FlagDodgeOrWalk flagDow : flagDOW) {
+            if (flagDow.flag && flagDow.cell[0] == hero.getCurrentCell().getRow() && flagDow.cell[1] == hero.getCurrentCell().getColumn()) {
+              isInRespawnZone = true;
+              break;
+            }
           }
         }
+        if (!isInRespawnZone)
+          moveHeroToOBJ(world, hero);
+      } else {
+        if (hero.getCurrentCell().getColumn() >= 0 && world.getMyHeroes()[i].getCurrentCell().getRow() >= 0 && targetCells[i].getColumn() >= 0 && hero.getCurrentCell().getColumn() != targetCells[i].getColumn() || hero.getCurrentCell().getRow() != targetCells[i].getRow()) {
+          world.moveHero(hero, FindPath(world, i, targetCells[i]));
+          System.out.println(hero.getId() + " " + FindPath(world, i, targetCells[i]));
+        } else
+          System.out.println("in Position");
       }
-      if (!isInRespawnZone)
-        moveHeroToOBJ(world, hero);
     }
     printCurrentMap(world);
   }
 
   public void actionTurn(World world) {
+
+    Hero enemyHeroes[] = world.getOppHeroes();
+    System.out.printf("E%d %d %d  E%d %d %d  E%d %d %d  E%d %d %d%n", enemyHeroes[0].getId(), enemyHeroes[0].getCurrentCell().getRow(), enemyHeroes[0].getCurrentCell().getColumn(),
+            enemyHeroes[1].getId(), enemyHeroes[1].getCurrentCell().getRow(), enemyHeroes[1].getCurrentCell().getColumn(),
+            enemyHeroes[2].getId(), enemyHeroes[2].getCurrentCell().getRow(), enemyHeroes[2].getCurrentCell().getColumn(),
+            enemyHeroes[3].getId(), enemyHeroes[3].getCurrentCell().getRow(), enemyHeroes[3].getCurrentCell().getColumn());
+    for (Hero hero : world.getMyHeroes()) {
+      if (hero.getName().equals(HeroName.BLASTER)) {
+        for (Hero enemy : enemyHeroes) {
+          if (enemy.getCurrentCell().getColumn() != -1 && world.manhattanDistance(hero.getCurrentCell(), enemy.getCurrentCell()) <= 4 && hero.getAbility(AbilityName.BLASTER_ATTACK).isReady()) {
+            world.castAbility(hero, AbilityName.BLASTER_ATTACK, enemy.getCurrentCell());
+          }
+          if (enemy.getCurrentCell().getColumn() != -1 && world.manhattanDistance(hero.getCurrentCell(), enemy.getCurrentCell()) == 5 && hero.getAbility(AbilityName.BLASTER_BOMB).isReady()) {
+            world.castAbility(hero, AbilityName.BLASTER_BOMB, enemy.getCurrentCell());
+          }
+          break;
+        }
+        break;
+      }
+    }
     if (firstTimeDodge) {
       for (FlagDodgeOrWalk flag : flagDOW) {
         if (flag.flag) {
@@ -218,5 +374,6 @@ public class AI {
       }
       firstTimeDodge = false;
     }
+
   }
 }
