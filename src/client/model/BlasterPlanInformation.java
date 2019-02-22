@@ -1,10 +1,15 @@
 package client.model;
 
 public class BlasterPlanInformation {
-    private PlanOfBlaster plan = PlanOfBlaster.INITIAL;
+    private PlanOfBlaster plan = PlanOfBlaster.DEFAULT;
     private int[] offensiveTargetCell = new int[2];
     private int[] dodgeTargetCell = new int[2];
     private int rangeOfCasting;
+    private AbilityName abilityName;
+
+    public AbilityName getAbilityName() {
+        return abilityName;
+    }
 
     public int getRangeOfCasting() {
         return rangeOfCasting;
@@ -28,6 +33,14 @@ public class BlasterPlanInformation {
 
     public void setPlan(PlanOfBlaster plan) {
         this.plan = plan;
+        switch (plan) {
+            case BOMB:
+                this.abilityName = AbilityName.BLASTER_BOMB;
+                break;
+            case ATTACK:
+                this.abilityName = AbilityName.BLASTER_ATTACK;
+                break;
+        }
     }
 
     public void setOffensiveTargetCell(int[] offensiveTargetCell) {
@@ -72,5 +85,6 @@ public class BlasterPlanInformation {
                     break;
             }
         }
+        System.out.println("Hero" + hero.getId() + "'s plan: " + this.getPlan());
     }
 }

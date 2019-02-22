@@ -42,7 +42,7 @@ public class AI {
                 }
             }
         }
-        blaster.setPlan(PlanOfBlaster.INITIAL);
+        blaster.setPlan(PlanOfBlaster.DEFAULT);
         if (maxTargetDistance > 6) {
             blaster.setDodgeTargetCell(finalTargetCell);
             blaster.setPlan(PlanOfBlaster.DODGE);
@@ -75,10 +75,14 @@ public class AI {
         |3||T||1|
         |-||2||-|
         */
-        targetCells[0] = map.getCell(targetRow - 2, targetColumn);
+        /*targetCells[0] = map.getCell(targetRow - 2, targetColumn);
         targetCells[1] = map.getCell(targetRow, targetColumn + 2);
         targetCells[2] = map.getCell(targetRow + 2, targetColumn);
-        targetCells[3] = map.getCell(targetRow, targetColumn - 2);
+        targetCells[3] = map.getCell(targetRow, targetColumn - 2);*/
+        targetCells[0] = map.getCell((firstRowOfObjectiveZone + lastRowOfObjectiveZone) / 2, firstColumnOfObjectiveZone);
+        targetCells[1] = map.getCell((firstRowOfObjectiveZone + lastRowOfObjectiveZone) / 2, lastColumnOfObjectiveZone);
+        targetCells[2] = map.getCell(firstRowOfObjectiveZone, (firstColumnOfObjectiveZone + lastColumnOfObjectiveZone) / 2);
+        targetCells[3] = map.getCell(lastRowOfObjectiveZone, (firstColumnOfObjectiveZone + lastColumnOfObjectiveZone) / 2);
         System.out.printf("res:%d %d%ntarget:%d %d%n", respawnColumn, respawnRow, targetColumn, targetRow);
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < column; j++) {
@@ -123,7 +127,7 @@ public class AI {
         }
     }
 
-    public Direction findPath(World world, int heroNum, Cell targetCell) {
+    private Direction findPath(World world, int heroNum, Cell targetCell) {
         Map map = world.getMap();
         int row = map.getRowNum(), column = map.getColumnNum();
         CellInformation[][] tempCellInformation = new CellInformation[row][column];
@@ -265,12 +269,25 @@ public class AI {
                 }
             }
         }
+        for (int row = firstRowOfObjectiveZone; row <= lastRowOfObjectiveZone; row++) {
+            for (int column = firstColumnOfObjectiveZone; column <= lastColumnOfObjectiveZone; column++) {
+                System.out.print(weightsOfAttack[row][column] + " ");
+            }
+            System.out.println();
+        }
+        System.out.println();
+        for (int row = firstRowOfObjectiveZone; row <= lastRowOfObjectiveZone; row++) {
+            for (int column = firstColumnOfObjectiveZone; column <= lastColumnOfObjectiveZone; column++) {
+                System.out.print(weightsOfBomb[row][column] + " ");
+            }
+            System.out.println();
+        }
     }
 
     public void offensiveBlasterMove(World world, Hero myHero) {
         BlasterPlanInformation blaster = blasterPlanInformation[myHero.getId() / 2];
         if (world.manhattanDistance(myHero.getCurrentCell().getRow(), myHero.getCurrentCell().getColumn(), blaster.getOffensiveTargetCell()[0], blaster.getOffensiveTargetCell()[1]) > blaster.getRangeOfCasting() - 1) {
-            Direction nextDirection = findPath(world, myHero.getId(), world.getMap().getCell(blaster.getOffensiveTargetCell()[0], blaster.getOffensiveTargetCell()[1]));
+            Direction nextDirection = findPath(world, myHero.getId() / 2, world.getMap().getCell(blaster.getOffensiveTargetCell()[0], blaster.getOffensiveTargetCell()[1]));
             world.moveHero(myHero, nextDirection);
             System.out.println(myHero.getId() + " " + nextDirection);
         } else {
@@ -282,6 +299,7 @@ public class AI {
         int currentTurn = world.getCurrentTurn();
         switch (world.getMovePhaseNum()) {
             case 0:
+                setWeightForOffensivePlan(world);
                 for (int i = 0; i < world.getMap().getRowNum(); i++) {
                     for (int j = 0; j < world.getMap().getColumnNum(); j++) {
                         initialCellInformation[i][j].isReservedForDodge = false;
@@ -293,7 +311,7 @@ public class AI {
                 for (Hero hero : world.getMyHeroes()) {
                     if (hero.getCurrentCell().getRow() == -1) continue; // Hero is dead
                     int i = hero.getId() / 2;
-                    if (blasterPlanInformation[i].getPlan() == PlanOfBlaster.INITIAL || blasterPlanInformation[i].getPlan() == PlanOfBlaster.DODGE) continue;
+                    if (blasterPlanInformation[i].getPlan() == PlanOfBlaster.DODGE || !hero.getCurrentCell().isInObjectiveZone()) continue;
                     if (currentTurn % 4 == (i + 1) % 4) {
                         //Blaster Bomb
                         blasterPlanInformation[i].setPlanOfBlaster(world, hero, PlanOfBlaster.BOMB, weightsOfBomb, firstRowOfObjectiveZone, firstColumnOfObjectiveZone, lastRowOfObjectiveZone, lastColumnOfObjectiveZone);
@@ -307,12 +325,11 @@ public class AI {
         for (int i = 0; i < 4; i++) {
             Hero hero = world.getMyHeroes()[i];
             BlasterPlanInformation blaster = blasterPlanInformation[hero.getId() / 2];
-            System.out.println("Hero" + hero.getId() + "'s plan: " + blaster.getPlan());
             Cell currentCell = hero.getCurrentCell();
             if (currentCell.getRow() != -1) {
-                if (currentCell.isInObjectiveZone()) {
+                if (currentCell.isInObjectiveZone()) { // in the objective zone
                     switch (blaster.getPlan()) {
-                        case INITIAL:
+                        case DEFAULT:
                             if (initialCellInformation[currentCell.getRow()][currentCell.getColumn()].layerNumber < 5)
                                 targetReach[i] = true;
                             if (!targetReach[i]) moveHeroToOBJ(world, hero);
@@ -321,142 +338,91 @@ public class AI {
                                     world.moveHero(hero, findPath(world, i, targetCells[i]));
                                     System.out.println(hero.getId() + " " + findPath(world, i, targetCells[i]));
                                 } else {
-                                    blaster.setPlan(PlanOfBlaster.DEFAULT);
                                     System.out.println("in Position");
                                 }
                             }
                             break;
-                        case DEFAULT:
-
-                            break;
                         case ATTACK:
-                            switch (world.getMovePhaseNum()) {
-                                case 4:
-                                case 5:
-                                    offensiveBlasterMove(world, hero);
-                                    break;
-                            }
+                        case BOMB: // TODO: check motion bugs.
+                            if (world.getMovePhaseNum() == 4 || world.getMovePhaseNum() == 5)
+                                offensiveBlasterMove(world, hero);
+                            break;
                     }
-                    // TODO: add moving for different plans.
-                } else {
-                    if (world.getMovePhaseNum() == 0) {
+                } else { // out of objective zone
+                    if (world.getMovePhaseNum() == 0)
                         setFlagDodgeOrWalk(world, hero, hero.getDodgeAbilities()[0].getRange());
-                    }
                     switch (blaster.getPlan()) {
-                        case INITIAL:
+                        case DEFAULT:
                             if (initialCellInformation[currentCell.getRow()][currentCell.getColumn()].layerNumber < 5)
                                 targetReach[i] = true;
                             if (!targetReach[i]) moveHeroToOBJ(world, hero);
-                            else {
-                                world.moveHero(hero, findPath(world, i, targetCells[i]));
-                            }
+                            else world.moveHero(hero, findPath(world, i, targetCells[i]));
                             break;
-                        case DEFAULT:
-
+                        case DODGE:
                             break;
                     }
                 }
             } else {
-                blaster.setPlan(PlanOfBlaster.INITIAL);
+                blaster.setPlan(PlanOfBlaster.DEFAULT);
                 targetReach[i] = false;
             }
         }
-
-        /*Map map = world.getMap();
-         *//*
-        |-||0||-|
-        |3||T||1|
-        |-||2||-|
-        *//*
-        Cell[] targetCells = new Cell[4];
-        targetCells[0] = map.getCell(targetRow - 2, targetColumn);
-        targetCells[1] = map.getCell(targetRow, targetColumn + 2);
-        targetCells[2] = map.getCell(targetRow + 2, targetColumn);
-        targetCells[3] = map.getCell(targetRow, targetColumn - 2);
-
-        Hero[] enemyHeroes = world.getOppHeroes();
-        System.out.printf("E%d %d %d  E%d %d %d  E%d %d %d  E%d %d %d%n", enemyHeroes[0].getId(), enemyHeroes[0].getCurrentCell().getRow(), enemyHeroes[0].getCurrentCell().getColumn(),
-                enemyHeroes[1].getId(), enemyHeroes[1].getCurrentCell().getRow(), enemyHeroes[1].getCurrentCell().getColumn(),
-                enemyHeroes[2].getId(), enemyHeroes[2].getCurrentCell().getRow(), enemyHeroes[2].getCurrentCell().getColumn(),
-                enemyHeroes[3].getId(), enemyHeroes[3].getCurrentCell().getRow(), enemyHeroes[3].getCurrentCell().getColumn());
-
-        for (int i = 0; i < 4; i++) {
-            Hero hero = world.getMyHeroes()[i];
-            Cell currentCell = hero.getCurrentCell();
-            if (currentCell.getRow() == -1) {
-                targetReach[i] = false;
-                continue;
-            }
-            if (currentCell.getRow() != -1 && initialCellInformation[currentCell.getRow()][currentCell.getColumn()].layerNumber < 3)
-                targetReach[i] = true;
-            if (!currentCell.isInObjectiveZone()) {
-                if (currentCell.getRow() != -1) { // Hero is alive
-                    moveHeroToOBJ(world, hero);
-                }
-            } else {
-                //War Moves
-                if (currentTurn % 4 == (i + 1) % 4) {
-                    //Blaster Bomb
-
-                }
-                if (currentTurn % 4 == (i + 2) % 4 || currentTurn % 4 == (i + 3) % 4 || currentTurn % 4 == (i + 4) % 4) {
-                    //Blaster Attack
-                    offensiveBlasterMove(i, world);
-                }
-            }
-        }*/
     }
 
-    public void attackBlasterAction(int heroNum, World world) {
-        Hero[] enemyHeroes = world.getOppHeroes();
-        Hero[] myHeroes = world.getMyHeroes();
-        int nearestEnemyManhattanDistance = 10;
-        Cell targetEnemyCell = enemyHeroes[0].getCurrentCell();
-        for (int i = 0; i < 4; i++) {
-            Cell enemyHeroCurrentCell = enemyHeroes[i].getCurrentCell();
-            Cell myHeroCurrentCell = myHeroes[heroNum].getCurrentCell();
-            if (enemyHeroCurrentCell.isInObjectiveZone() && world.manhattanDistance(enemyHeroCurrentCell, myHeroCurrentCell) < nearestEnemyManhattanDistance) {
-                nearestEnemyManhattanDistance = world.manhattanDistance(enemyHeroCurrentCell, myHeroCurrentCell);
-                targetEnemyCell = enemyHeroCurrentCell;
+    private void blasterAction(World world, Hero hero) {
+        BlasterPlanInformation blaster = blasterPlanInformation[hero.getId() / 2];
+        int[] currentCell = {hero.getCurrentCell().getRow(), hero.getCurrentCell().getColumn()};
+        int[] targetCell = blaster.getOffensiveTargetCell();
+        int rangeOfCasting = blaster.getRangeOfCasting();
+        if (world.manhattanDistance(currentCell[0], currentCell[1], targetCell[0], targetCell[1]) < rangeOfCasting) {
+            if (blaster.getPlan() == PlanOfBlaster.BOMB || world.isInVision(currentCell[0], currentCell[1], targetCell[0], targetCell[1])) {
+                world.castAbility(hero, blaster.getAbilityName(), targetCell[0], targetCell[1]); }
+        } else { // not reached to target yet. so it should do a attack
+            int maxWeight = 0;
+            targetCell = new int[2];
+            for (int column = currentCell[1] - rangeOfCasting; column <= currentCell[1] + rangeOfCasting; column++) { // attack
+                int rowUp = currentCell[0] + rangeOfCasting - absolute(column - currentCell[1]);
+                int rowDown = currentCell[0] - rangeOfCasting + absolute(column - currentCell[1]);
+                for (int row = rowDown; row <= rowUp; row++) {
+                    switch (blaster.getPlan()) {
+                        case ATTACK:
+                            if (weightsOfAttack[row][column] > maxWeight) {
+                                maxWeight = weightsOfAttack[row][column];
+                                targetCell[0] = row;
+                                targetCell[1] = column;
+                            }
+                            break;
+                        case BOMB:
+                            if (weightsOfBomb[row][column] > maxWeight) {
+                                maxWeight = weightsOfBomb[row][column];
+                                targetCell[0] = row;
+                                targetCell[1] = column;
+                            }
+                            break;
+                    }
+                }
+            }
+            if (maxWeight != 0) {
+                world.castAbility(hero, blaster.getAbilityName(), targetCell[0], targetCell[1]);
             }
         }
-        if (nearestEnemyManhattanDistance <= 4)
-            world.castAbility(myHeroes[heroNum], AbilityName.BLASTER_ATTACK, targetEnemyCell);
+        blaster.setPlan(PlanOfBlaster.DEFAULT);
     }
 
     public void actionTurn(World world) {
         setWeightForOffensivePlan(world);
-        Hero[] enemyHeroes = world.getOppHeroes();
-        System.out.printf("E%d %d %d  E%d %d %d  E%d %d %d  E%d %d %d%n", enemyHeroes[0].getId(), enemyHeroes[0].getCurrentCell().getRow(), enemyHeroes[0].getCurrentCell().getColumn(),
-                enemyHeroes[1].getId(), enemyHeroes[1].getCurrentCell().getRow(), enemyHeroes[1].getCurrentCell().getColumn(),
-                enemyHeroes[2].getId(), enemyHeroes[2].getCurrentCell().getRow(), enemyHeroes[2].getCurrentCell().getColumn(),
-                enemyHeroes[3].getId(), enemyHeroes[3].getCurrentCell().getRow(), enemyHeroes[3].getCurrentCell().getColumn());
-
         for (int i = 0; i < 4; i++) {
             Hero hero = world.getMyHeroes()[i];
             BlasterPlanInformation blaster = blasterPlanInformation[hero.getId() / 2];
-            int currentTurn = world.getCurrentTurn();
-            if (!hero.getCurrentCell().isInObjectiveZone()) {
-                if (blaster.getPlan() == PlanOfBlaster.DODGE) {
+            if (hero.getCurrentCell().getRow() == -1) continue; // hero is dead
+            switch (blaster.getPlan()) {
+                case DODGE:
                     world.castAbility(hero, hero.getDodgeAbilities()[0], blaster.getDodgeTargetCell()[0], blaster.getDodgeTargetCell()[1]);
-                    blaster.setPlan(PlanOfBlaster.INITIAL);
-                }
-            } else {
-                //War Action
-                if (currentTurn % 4 == (i + 1) % 4) {
-                    //Blaster Bomb
-                }
-                if (currentTurn % 4 == (i + 2) % 4) {
-                    //Blaster Attack
-                    attackBlasterAction(i, world);
-                }
-                if (currentTurn % 4 == (i + 3) % 4) {
-
-                }
-                if (currentTurn % 4 == (i + 4) % 4) {
-                    //Blaster Attack
-                    attackBlasterAction(i, world);
-                }
+                    blaster.setPlan(PlanOfBlaster.DEFAULT);
+                    break;
+                case ATTACK: case BOMB:
+                    blasterAction(world, hero);
+                    break;
             }
         }
     }
