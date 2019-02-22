@@ -62,12 +62,12 @@ public class AI {
                 if (i > lastRowOfObjectiveZone && cellIsInObjectiveZone) lastRowOfObjectiveZone = i;
                 if (j < firstColumnOfObjectiveZone && cellIsInObjectiveZone) firstColumnOfObjectiveZone = j;
                 if (j > lastColumnOfObjectiveZone && cellIsInObjectiveZone) lastColumnOfObjectiveZone = j;
-                if (cellIsInObjectiveZone && map.getCell(i - 2, j).isInObjectiveZone() && map.getCell(i + 2, j).isInObjectiveZone() && map.getCell(i - 2, j - 2).isInObjectiveZone() && map.getCell(i + 2, j - 2).isInObjectiveZone() && map.getCell(i - 2, j + 2).isInObjectiveZone() && map.getCell(i + 2, j + 2).isInObjectiveZone() && map.getCell(i, j - 2).isInObjectiveZone() && map.getCell(i, j + 2).isInObjectiveZone()) {
+                /*if (cellIsInObjectiveZone && map.getCell(i - 2, j).isInObjectiveZone() && map.getCell(i + 2, j).isInObjectiveZone() && map.getCell(i - 2, j - 2).isInObjectiveZone() && map.getCell(i + 2, j - 2).isInObjectiveZone() && map.getCell(i - 2, j + 2).isInObjectiveZone() && map.getCell(i + 2, j + 2).isInObjectiveZone() && map.getCell(i, j - 2).isInObjectiveZone() && map.getCell(i, j + 2).isInObjectiveZone()) {
                     if (absolute(targetRow - respawnRow) + absolute(targetColumn - respawnColumn) > absolute(i - respawnRow) + absolute(j - respawnColumn)) {
                         targetRow = i;
                         targetColumn = j;
                     }
-                }
+                }*/
             }
         }
          /*
@@ -79,6 +79,8 @@ public class AI {
         targetCells[1] = map.getCell(targetRow, targetColumn + 2);
         targetCells[2] = map.getCell(targetRow + 2, targetColumn);
         targetCells[3] = map.getCell(targetRow, targetColumn - 2);*/
+        targetRow = (firstRowOfObjectiveZone + lastRowOfObjectiveZone) / 2;
+        targetColumn = (firstColumnOfObjectiveZone + lastColumnOfObjectiveZone) / 2;
         targetCells[0] = map.getCell((firstRowOfObjectiveZone + lastRowOfObjectiveZone) / 2, firstColumnOfObjectiveZone);
         targetCells[1] = map.getCell((firstRowOfObjectiveZone + lastRowOfObjectiveZone) / 2, lastColumnOfObjectiveZone);
         targetCells[2] = map.getCell(firstRowOfObjectiveZone, (firstColumnOfObjectiveZone + lastColumnOfObjectiveZone) / 2);
@@ -219,7 +221,7 @@ public class AI {
         }
     }
 
-    public void moveHeroToOBJ(World world, Hero hero) {
+    private void moveHeroToOBJ(World world, Hero hero) {
         Direction targetDirection = null;
         int cellRow = hero.getCurrentCell().getRow(), cellColumn = hero.getCurrentCell().getColumn();
         Map map = world.getMap();
@@ -246,7 +248,7 @@ public class AI {
             world.moveHero(hero, targetDirection);
     }
 
-    public void setWeightForOffensivePlan(World world) {
+    private void setWeightForOffensivePlan(World world) {
         weightsOfAttack = new int[world.getMap().getRowNum()][world.getMap().getColumnNum()];
         weightsOfBomb = new int[world.getMap().getRowNum()][world.getMap().getColumnNum()];
         final int attackAOF = world.getMyHeroes()[0].getAbility(AbilityName.BLASTER_ATTACK).getAreaOfEffect();
@@ -284,7 +286,7 @@ public class AI {
         }
     }
 
-    public void offensiveBlasterMove(World world, Hero myHero) {
+    private void offensiveBlasterMove(World world, Hero myHero) {
         BlasterPlanInformation blaster = blasterPlanInformation[myHero.getId() / 2];
         if (world.manhattanDistance(myHero.getCurrentCell().getRow(), myHero.getCurrentCell().getColumn(), blaster.getOffensiveTargetCell()[0], blaster.getOffensiveTargetCell()[1]) > blaster.getRangeOfCasting() - 1) {
             Direction nextDirection = findPath(world, myHero.getId() / 2, world.getMap().getCell(blaster.getOffensiveTargetCell()[0], blaster.getOffensiveTargetCell()[1]));
@@ -300,6 +302,18 @@ public class AI {
         switch (world.getMovePhaseNum()) {
             case 0:
                 setWeightForOffensivePlan(world);
+                for (Hero hero : world.getMyHeroes()) {
+                    if (hero.getCurrentCell().getRow() == -1) continue; // Hero is dead
+                    int i = hero.getId() / 2;
+                    if (blasterPlanInformation[i].getPlan() == PlanOfBlaster.DODGE || !hero.getCurrentCell().isInObjectiveZone()) continue;
+                    if (currentTurn % 4 == (i + 1) % 4) {
+                        //Blaster Bomb
+                        blasterPlanInformation[i].setPlanOfBlaster(world, hero, PlanOfBlaster.BOMB, weightsOfBomb, firstRowOfObjectiveZone, firstColumnOfObjectiveZone, lastRowOfObjectiveZone, lastColumnOfObjectiveZone);
+                    } else {
+                        //Blaster Attack
+                        blasterPlanInformation[i].setPlanOfBlaster(world, hero, PlanOfBlaster.ATTACK, weightsOfAttack, firstRowOfObjectiveZone, firstColumnOfObjectiveZone, lastRowOfObjectiveZone, lastColumnOfObjectiveZone);
+                    }
+                }
                 for (int i = 0; i < world.getMap().getRowNum(); i++) {
                     for (int j = 0; j < world.getMap().getColumnNum(); j++) {
                         initialCellInformation[i][j].isReservedForDodge = false;
@@ -338,6 +352,7 @@ public class AI {
                                     world.moveHero(hero, findPath(world, i, targetCells[i]));
                                     System.out.println(hero.getId() + " " + findPath(world, i, targetCells[i]));
                                 } else {
+                                    blaster.setFirstTimeLayout(true);
                                     System.out.println("in Position");
                                 }
                             }
@@ -364,6 +379,7 @@ public class AI {
                 }
             } else {
                 blaster.setPlan(PlanOfBlaster.DEFAULT);
+                blaster.setFirstTimeLayout(false);
                 targetReach[i] = false;
             }
         }

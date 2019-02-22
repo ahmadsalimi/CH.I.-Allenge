@@ -6,6 +6,11 @@ public class BlasterPlanInformation {
     private int[] dodgeTargetCell = new int[2];
     private int rangeOfCasting;
     private AbilityName abilityName;
+    private boolean firstTimeLayout = false;
+
+    public boolean isFirstTimeLayout() {
+        return firstTimeLayout;
+    }
 
     public AbilityName getAbilityName() {
         return abilityName;
@@ -25,6 +30,10 @@ public class BlasterPlanInformation {
 
     public int[] getDodgeTargetCell() {
         return dodgeTargetCell;
+    }
+
+    public void setFirstTimeLayout(boolean firstTimeLayout) {
+        this.firstTimeLayout = firstTimeLayout;
     }
 
     public void setRangeOfCasting(int rangeOfCasting) {
@@ -72,7 +81,7 @@ public class BlasterPlanInformation {
                 }
             }
         }
-        if (maxWeight == 0) this.setPlan(PlanOfBlaster.DEFAULT);
+        if (maxWeight == 0 || !firstTimeLayout) this.setPlan(PlanOfBlaster.DEFAULT);
         else {
             this.setPlan(currentPlan);
             this.setOffensiveTargetCell(bestCell);
