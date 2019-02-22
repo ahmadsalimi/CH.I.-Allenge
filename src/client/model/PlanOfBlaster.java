@@ -1,5 +1,5 @@
 package client.model;
 
 public enum PlanOfBlaster {
-    DEFAULT, ATTACK, BOMB, DODGE
+    INITIAL, DEFAULT, ATTACK, BOMB, DODGE
 }

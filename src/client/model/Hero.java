@@ -17,26 +17,6 @@ public class Hero
     private Cell currentCell;
     private Cell[] recentPath;
 
-    private PlanOfBlaster planOfBlaster;
-
-    public PlanOfBlaster getPlanOfBlaster() {
-        return this.planOfBlaster;
-    }
-
-    public void setPlanOfBlaster(PlanOfBlaster plan) {
-        this.planOfBlaster = plan;
-    }
-
-    private int[] offensiveTargetCell = new int[2];
-
-    public int[] getOffensiveTargetCell() {
-        return offensiveTargetCell;
-    }
-
-    public void setOffensiveTargetCell(int[] offensiveTargetCell) {
-        this.offensiveTargetCell = offensiveTargetCell;
-    }
-
     Hero(HeroConstants heroConstants, int id, ArrayList<Ability> abilities)
     {
         this.id = id;
