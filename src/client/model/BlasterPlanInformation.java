@@ -41,7 +41,7 @@ public class BlasterPlanInformation {
         this.firstTimeLayout = firstTimeLayout;
     }
 
-    public void setRangeOfCasting(int rangeOfCasting) {
+    private void setRangeOfCasting(int rangeOfCasting) {
         this.rangeOfCasting = rangeOfCasting;
     }
 
@@ -57,7 +57,7 @@ public class BlasterPlanInformation {
         }
     }
 
-    public void setOffensiveTargetCell(int[] offensiveTargetCell) {
+    private void setOffensiveTargetCell(int[] offensiveTargetCell) {
         this.offensiveTargetCell = offensiveTargetCell;
     }
 

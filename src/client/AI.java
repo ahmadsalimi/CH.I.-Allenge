@@ -28,21 +28,9 @@ public class AI {
         int[] finalTargetCell = new int[2];
         for (int column = cell[1] - range; column <= cell[1] + range; column++) {
             int rowUp = cell[0] + range - absolute(column - cell[1]);
-            if (map.isInMap(rowUp, column) && !map.getCell(rowUp, column).isWall() && !initialCellInformation[rowUp][column].isReservedForDodge) {
-                if (maxTargetDistance <= initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowUp][column].layerNumber) {
-                    maxTargetDistance = initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowUp][column].layerNumber;
-                    finalTargetCell[0] = rowUp;
-                    finalTargetCell[1] = column;
-                }
-            }
+            maxTargetDistance = getMaxTargetDistance(map, cell, maxTargetDistance, finalTargetCell, column, rowUp);
             int rowDown = cell[0] - range + absolute(column - cell[1]);
-            if (map.isInMap(rowDown, column) && !map.getCell(rowDown, column).isWall() && !initialCellInformation[rowDown][column].isReservedForDodge) {
-                if (maxTargetDistance <= initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowDown][column].layerNumber) {
-                    maxTargetDistance = initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowDown][column].layerNumber;
-                    finalTargetCell[0] = rowDown;
-                    finalTargetCell[1] = column;
-                }
-            }
+            maxTargetDistance = getMaxTargetDistance(map, cell, maxTargetDistance, finalTargetCell, column, rowDown);
         }
         blaster.setPlan(PlanOfBlaster.DEFAULT);
         if (maxTargetDistance > 6) {
@@ -50,6 +38,17 @@ public class AI {
             blaster.setPlan(PlanOfBlaster.DODGE);
             initialCellInformation[finalTargetCell[0]][finalTargetCell[1]].isReservedForDodge = true;
         }
+    }
+
+    private int getMaxTargetDistance(Map map, int[] cell, int maxTargetDistance, int[] finalTargetCell, int column, int rowUp) {
+        if (map.isInMap(rowUp, column) && !map.getCell(rowUp, column).isWall() && !initialCellInformation[rowUp][column].isReservedForDodge) {
+            if (maxTargetDistance <= initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowUp][column].layerNumber) {
+                maxTargetDistance = initialCellInformation[cell[0]][cell[1]].layerNumber - initialCellInformation[rowUp][column].layerNumber;
+                finalTargetCell[0] = rowUp;
+                finalTargetCell[1] = column;
+            }
+        }
+        return maxTargetDistance;
     }
 
     private void setCellsInformation(World world) {
@@ -245,21 +244,21 @@ public class AI {
     private void setWeightForOffensivePlan(World world) {
         weightsOfAttack = new int[world.getMap().getRowNum()][world.getMap().getColumnNum()];
         weightsOfBomb = new int[world.getMap().getRowNum()][world.getMap().getColumnNum()];
-        final int attackAOF = world.getMyHeroes()[0].getAbility(AbilityName.BLASTER_ATTACK).getAreaOfEffect();
-        final int bombAOF = world.getMyHeroes()[0].getAbility(AbilityName.BLASTER_BOMB).getAreaOfEffect();
+        final int attackAOE = world.getMyHeroes()[0].getAbility(AbilityName.BLASTER_ATTACK).getAreaOfEffect();
+        final int bombAOE = world.getMyHeroes()[0].getAbility(AbilityName.BLASTER_BOMB).getAreaOfEffect();
         for (Hero enemyHero : world.getOppHeroes()) {
             int[] cell = {enemyHero.getCurrentCell().getRow(), enemyHero.getCurrentCell().getColumn()};
             if (cell[0] == -1) continue; // Hero is dead!
-            for (int column = cell[1] - attackAOF; column <= cell[1] + attackAOF; column++) { // attack
-                int rowDown = cell[0] + (attackAOF - absolute(column - cell[1]));
-                int rowUp = cell[0] - (attackAOF - absolute(column - cell[1]));
+            for (int column = cell[1] - attackAOE; column <= cell[1] + attackAOE; column++) { // attack
+                int rowDown = cell[0] + (attackAOE - absolute(column - cell[1]));
+                int rowUp = cell[0] - (attackAOE - absolute(column - cell[1]));
                 for (int row = rowUp; row <= rowDown; row++) {
                     weightsOfAttack[row][column]++;
                 }
             }
-            for (int column = cell[1] - bombAOF; column <= cell[1] + bombAOF; column++) { // bomb
-                int rowDown = cell[0] + (bombAOF - absolute(column - cell[1]));
-                int rowUp = cell[0] - (bombAOF - absolute(column - cell[1]));
+            for (int column = cell[1] - bombAOE; column <= cell[1] + bombAOE; column++) { // bomb
+                int rowDown = cell[0] + (bombAOE - absolute(column - cell[1]));
+                int rowUp = cell[0] - (bombAOE - absolute(column - cell[1]));
                 for (int row = rowUp; row <= rowDown; row++) {
                     weightsOfBomb[row][column]++;
                 }
