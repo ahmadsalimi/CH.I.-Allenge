@@ -486,7 +486,7 @@ public class AI {
         int[] currentCellArray = {myHero.getCurrentCell().getRow(), myHero.getCurrentCell().getColumn()};
         int[] targetCellArray = blaster.getOffensiveTargetCell();
         int rangeOfCasting = blaster.getRangeOfCasting();
-        if (world.manhattanDistance(currentCellArray[0], currentCellArray[1], targetCellArray[0], targetCellArray[1]) < rangeOfCasting && (blaster.getPlan() == PlanOfBlaster.BOMB || world.isInVision(currentCellArray[0], currentCellArray[1], targetCellArray[0], targetCellArray[1]))) {
+        if (world.manhattanDistance(currentCellArray[0], currentCellArray[1], targetCellArray[0], targetCellArray[1]) <= rangeOfCasting && (blaster.getPlan() == PlanOfBlaster.BOMB || world.isInVision(currentCellArray[0], currentCellArray[1], targetCellArray[0], targetCellArray[1]))) {
             world.castAbility(myHero, blaster.getAbilityName(), targetCellArray[0], targetCellArray[1]);
         } else { // not reached to target yet. so it should do a attack
             targetCellArray = new int[2];
