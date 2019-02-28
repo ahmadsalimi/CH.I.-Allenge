@@ -7,6 +7,7 @@ public class BlasterPlanInformation {
     private int rangeOfCasting;
     private AbilityName abilityName;
     private boolean firstTimeLayout = false;
+    private int moveNum;
 
     public boolean isFirstTimeLayout() {
         return firstTimeLayout;
@@ -30,6 +31,10 @@ public class BlasterPlanInformation {
 
     public int[] getDodgeTargetCell() {
         return dodgeTargetCell;
+    }
+
+    public int getMoveNum() {
+        return moveNum;
     }
 
     public void setFirstTimeLayout(boolean firstTimeLayout) {
@@ -58,6 +63,10 @@ public class BlasterPlanInformation {
 
     public void setDodgeTargetCell(int[] dodgeTargetCell) {
         this.dodgeTargetCell = dodgeTargetCell;
+    }
+
+    public void setMoveNum(int moveNum) {
+        this.moveNum = moveNum;
     }
 
     public void setPlanOfBlaster(World world, Hero hero, PlanOfBlaster currentPlan, int[][] weights, int firstRow, int firstColumn, int lastRow, int lastColumn) {
