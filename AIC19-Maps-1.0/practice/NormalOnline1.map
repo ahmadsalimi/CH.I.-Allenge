@@ -5,7 +5,7 @@
 		"timeout": 500,
 		"maxAP": 100,
 		"maxTurns": 100,
-		"maxScore": 200
+		"maxScore": 300
 	},
 	"map": {
 		"cells": [
@@ -7775,7 +7775,7 @@
 			"APCost": 15,
 			"cooldown": 0,
 			"areaOfEffect": 0,
-			"power": 20,
+			"power": 25,
 			"isLobbing": true
 		},
 		{
@@ -7785,7 +7785,7 @@
 			"APCost": 15,
 			"cooldown": 0,
 			"areaOfEffect": 1,
-			"power": 30,
+			"power": 20,
 			"isLobbing": false
 		},
 		{
@@ -7845,7 +7845,7 @@
 			"APCost": 15,
 			"cooldown": 0,
 			"areaOfEffect": 1,
-			"power": 25,
+			"power": 40,
 			"isLobbing": true
 		},
 		{
@@ -7862,10 +7862,10 @@
 			"name": "HEALER_HEAL",
 			"type": "DEFENSIVE",
 			"range": 4,
-			"APCost": 25,
-			"cooldown": 3,
+			"APCost": 15,
+			"cooldown": 2,
 			"areaOfEffect": 0,
-			"power": 40,
+			"power": 30,
 			"isLobbing": true
 		}
 	]
