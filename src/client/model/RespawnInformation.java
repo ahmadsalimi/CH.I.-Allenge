@@ -2,11 +2,12 @@ package client.model;
 
 import client.AI;
 
+import java.util.Arrays;
+
 public class RespawnInformation {
     private int[] respawnCell;
     private int[] targetCell;
-    public static int numberOfObjectivePoints;
-    public static int numberOfTargets;
+    private static boolean finishTarget = false;
 
     public RespawnInformation(Cell respawnCell) {
         int[] respawnArray = {respawnCell.getRow(), respawnCell.getColumn()};
@@ -49,7 +50,6 @@ public class RespawnInformation {
             int rowUp = i - (4 - absolute(column - j));
             for (int row = rowUp; row <= rowDown; row++) {
                 if (objectivePoints[row][column]) {
-                    RespawnInformation.numberOfObjectivePoints--;
                     objectivePoints[row][column] = false;
                 }
             }
@@ -91,14 +91,12 @@ public class RespawnInformation {
 
 
     static public void setTargetCell(World world, boolean[][] objectivePoints, int index) {
-        if (index == 4) return;
         final int WALL = 99;
         Map map = world.getMap();
         int row = map.getRowNum(), column = map.getColumnNum();
         RespawnInformation respawnInformation = AI.respawnInformation[index];
         CellInformation[][] cellInformation = new CellInformation[row][column];
 
-        boolean[][] objectivePointsCopy = copyObjectivePoints(objectivePoints, row, column);
 
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < column; j++) {
@@ -114,14 +112,23 @@ public class RespawnInformation {
         while (true) {
             for (int i = 0; i < row; i++) {
                 for (int j = 0; j < column; j++) {
-                    if (cellInformation[i][j].isLayerSet && setCellLayers(map, cellInformation, objectivePointsCopy, layer, i, j, index)) {
-                        System.out.println("set done!");
-                        setTargetCell(world, objectivePointsCopy, index + 1);
-                        setTarget = true;
+                    if (cellInformation[i][j].isLayerSet) {
+                        System.out.println(i + ", " + j + " layer = " + layer);
+                        boolean[][] objectivePointsCopy = copyObjectivePoints(objectivePoints, row, column);
+                        if (setCellLayers(map, cellInformation, objectivePointsCopy, layer, i, j, index)) {
+                            System.out.println("set done!, index = " + index + " target = " + Arrays.toString(AI.respawnInformation[index].getTargetCell()));
+                            if (index == 3) {
+                                finishTarget = true;
+                                return;
+                            }
+                            setTargetCell(world, objectivePointsCopy, index + 1);
+                            if (finishTarget) return;
+                            setTarget = true;
+                        }
                     }
                 }
             }
-            if (setTarget) break;
+            if (setTarget || layer > 200) break;
             layer++;
         }
     }

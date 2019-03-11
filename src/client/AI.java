@@ -43,12 +43,10 @@ public class AI {
     }
 
     public static void setObjectivePoints(boolean[][] objectivePoints) {
-        RespawnInformation.numberOfObjectivePoints = 0;
         for (int i = 0; i < map.getRowNum(); i++) {
             for (int j = 0; j < map.getColumnNum(); j++) {
                 Cell cell = map.getCell(i, j);
                 if (!cell.isWall() && cell.isInObjectiveZone()) {
-                    RespawnInformation.numberOfObjectivePoints++;
                     objectivePoints[i][j] = true;
                 }
             }
