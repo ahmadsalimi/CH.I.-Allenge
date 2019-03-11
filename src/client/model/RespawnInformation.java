@@ -1,13 +1,18 @@
 package client.model;
 
+import client.AI;
+
 public class RespawnInformation {
     private int[] respawnCell;
     private int[] targetCell;
+    public static int numberOfObjectivePoints;
+    public static int numberOfTargets;
 
-    public RespawnInformation(World world, boolean[][] objectivePoints, Cell respawnCell) {
+    public RespawnInformation(Cell respawnCell) {
         int[] respawnArray = {respawnCell.getRow(), respawnCell.getColumn()};
+        System.out.println("start of respawn info!");
         setRespawnCell(respawnArray);
-        setTargetCell(world, objectivePoints);
+        System.out.println("respawn cell set");
     }
 
     public int[] getRespawnCell() {
@@ -22,59 +27,61 @@ public class RespawnInformation {
         this.respawnCell = respawnCell;
     }
 
-    public void setTargetCell(int[] targetCell) {
+    public void setTargetCell(int... targetCell) {
         this.targetCell = targetCell;
     }
 
-    private int absolute(int x) {
+    private static int absolute(int x) {
         return x >= 0 ? x : -x;
     }
 
-    private boolean checkInObjectivePoint(boolean[][] objectivePoints, int i, int j) {
+    private static boolean checkInObjectivePoint(boolean[][] objectivePoints, int i, int j, int index) {
         if (objectivePoints[i][j]) {
-            int[] targetCell = {i, j};
-            this.setTargetCell(targetCell);
+            AI.respawnInformation[index].setTargetCell(i, j);
             return true;
         }
         return false;
     }
 
-    private boolean setDistanceOfHeroes(boolean[][] objectivePoints, int i, int j) {
+    private static boolean setDistanceOfHeroes(boolean[][] objectivePoints, int i, int j) {
         for (int column = j - 4; column <= j + 4; column++) { // attack
             int rowDown = i + (4 - absolute(column - j));
             int rowUp = i - (4 - absolute(column - j));
             for (int row = rowUp; row <= rowDown; row++) {
-                objectivePoints[row][column] = false;
+                if (objectivePoints[row][column]) {
+                    RespawnInformation.numberOfObjectivePoints--;
+                    objectivePoints[row][column] = false;
+                }
             }
         }
         return true;
     }
 
-    private boolean setCellLayers(Map map, CellInformation[][] cellInformation, boolean[][] objectivePoints, int layer, int i, int j) {
+    static private boolean setCellLayers(Map map, CellInformation[][] cellInformation, boolean[][] objectivePoints, int layer, int i, int j, int index) {
 
         if (layer == cellInformation[i][j].layerNumber) {
             if (map.isInMap(i + 1, j) && !cellInformation[i + 1][j].isLayerSet) {
                 cellInformation[i + 1][j].setCellInfo(layer + 1);
-                if (checkInObjectivePoint(objectivePoints, i + 1, j)) {
+                if (checkInObjectivePoint(objectivePoints, i + 1, j, index)) {
                     return setDistanceOfHeroes(objectivePoints, i + 1, j);
                 }
             }
             if (map.isInMap(i - 1, j) && !cellInformation[i - 1][j].isLayerSet) {
                 cellInformation[i - 1][j].setCellInfo(layer + 1);
-                if (checkInObjectivePoint(objectivePoints, i - 1, j)) {
+                if (checkInObjectivePoint(objectivePoints, i - 1, j, index)) {
                     return setDistanceOfHeroes(objectivePoints, i - 1, j);
                 }
 
             }
             if (map.isInMap(i, j + 1) && !cellInformation[i][j + 1].isLayerSet) {
                 cellInformation[i][j + 1].setCellInfo(layer + 1);
-                if (checkInObjectivePoint(objectivePoints, i, j + 1)) {
+                if (checkInObjectivePoint(objectivePoints, i, j + 1, index)) {
                     return setDistanceOfHeroes(objectivePoints, i, j + 1);
                 }
             }
             if (map.isInMap(i, j - 1) && !cellInformation[i][j - 1].isLayerSet) {
                 cellInformation[i][j - 1].setCellInfo(layer + 1);
-                if (checkInObjectivePoint(objectivePoints, i, j - 1)) {
+                if (checkInObjectivePoint(objectivePoints, i, j - 1, index)) {
                     return setDistanceOfHeroes(objectivePoints, i, j - 1);
                 }
             }
@@ -83,11 +90,16 @@ public class RespawnInformation {
     }
 
 
-    public void setTargetCell(World world, boolean[][] objectivePoints) {
+    static public void setTargetCell(World world, boolean[][] objectivePoints, int index) {
+        if (index == 4) return;
         final int WALL = 99;
         Map map = world.getMap();
         int row = map.getRowNum(), column = map.getColumnNum();
+        RespawnInformation respawnInformation = AI.respawnInformation[index];
         CellInformation[][] cellInformation = new CellInformation[row][column];
+
+        boolean[][] objectivePointsCopy = copyObjectivePoints(objectivePoints, row, column);
+
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < column; j++) {
                 cellInformation[i][j] = new CellInformation();
@@ -96,16 +108,30 @@ public class RespawnInformation {
                 }
             }
         }
-        cellInformation[respawnCell[0]][respawnCell[1]].setCellInfo(0);
+        cellInformation[respawnInformation.respawnCell[0]][respawnInformation.respawnCell[1]].setCellInfo(0);
         int layer = 0;
+        boolean setTarget = false;
         while (true) {
             for (int i = 0; i < row; i++) {
                 for (int j = 0; j < column; j++) {
-                    if (cellInformation[i][j].isLayerSet && setCellLayers(map, cellInformation, objectivePoints, layer, i, j))
-                        return;
+                    if (cellInformation[i][j].isLayerSet && setCellLayers(map, cellInformation, objectivePointsCopy, layer, i, j, index)) {
+                        System.out.println("set done!");
+                        setTargetCell(world, objectivePointsCopy, index + 1);
+                        setTarget = true;
+                    }
                 }
             }
+            if (setTarget) break;
             layer++;
         }
+    }
+
+    private static boolean[][] copyObjectivePoints(boolean[][] objectivePoints, int row, int column) {
+        boolean[][] objectivePointsCopy = new boolean[row][column];
+
+        for (int i = 0; i < row; i++) {
+            System.arraycopy(objectivePoints[i], 0, objectivePointsCopy[i], 0, column);
+        }
+        return objectivePointsCopy;
     }
 }

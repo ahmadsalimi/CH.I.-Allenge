@@ -2,6 +2,9 @@ package client;
 
 import client.model.*;
 
+import java.sql.Array;
+import java.util.Arrays;
+
 public class AI {
     private World world;
     private final int WALL = 99;
@@ -19,8 +22,8 @@ public class AI {
     private Hero myHero;
     private Cell currentCell;
     private BlasterPlanInformation blaster;
-    private Map map;
-    private RespawnInformation[] respawnInformation = new RespawnInformation[4];
+    private static Map map;
+    public static RespawnInformation[] respawnInformation = new RespawnInformation[4];
     private boolean isTargetSet = false;
 
     public void preProcess(World world) {
@@ -33,17 +36,24 @@ public class AI {
         }
         Cell[] respawnZone = map.getMyRespawnZone();
         for (int i = 0; i < 4; i++) {
-            respawnInformation[i] = new RespawnInformation(world, objectivePoints, respawnZone[i]);
+            respawnInformation[i] = new RespawnInformation(respawnZone[i]);
         }
+        RespawnInformation.setTargetCell(world, objectivePoints, 0);
         setCellsInformation();
     }
 
-    private void setObjectivePoints(boolean[][] objectivePoints) {
+    public static void setObjectivePoints(boolean[][] objectivePoints) {
+        RespawnInformation.numberOfObjectivePoints = 0;
         for (int i = 0; i < map.getRowNum(); i++) {
             for (int j = 0; j < map.getColumnNum(); j++) {
-                if (map.getCell(i, j).isInObjectiveZone()) objectivePoints[i][j] = true;
+                Cell cell = map.getCell(i, j);
+                if (!cell.isWall() && cell.isInObjectiveZone()) {
+                    RespawnInformation.numberOfObjectivePoints++;
+                    objectivePoints[i][j] = true;
+                }
             }
         }
+        System.out.println("Objective Point Set!");
     }
 
     public void pickTurn(World world) {

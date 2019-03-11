@@ -210,18 +210,22 @@ public class BlasterPlanInformation {
                     }
                 } else if (!map.getCell(heroCell[0], heroCell[1] + 1).isWall() && (currentPlan == PlanOfBlaster.BOMB || world.isInVision(heroCell[0], heroCell[1] + 1, row, column)) && world.manhattanDistance(heroCell[0], heroCell[1] + 1, row, column) < range) {
                     if (weights[row][column] > maxWeight) {
+
                         maxWeight = weights[row][column];
                         minDistance = world.manhattanDistance(heroCell[0], heroCell[1], row, column);
                         bestCell[0] = row;
                         bestCell[1] = column;
                         nextDirection = Direction.RIGHT;
 
+
                     } else if (weights[row][column] == maxWeight) {
                         if (world.manhattanDistance(heroCell[0], heroCell[1], row, column) < minDistance) {
+
                             minDistance = world.manhattanDistance(heroCell[0], heroCell[1], row, column);
                             bestCell[0] = row;
                             bestCell[1] = column;
                             nextDirection = Direction.RIGHT;
+
                         }
                     }
                 } else if (!map.getCell(heroCell[0], heroCell[1] - 1).isWall() && (currentPlan == PlanOfBlaster.BOMB || world.isInVision(heroCell[0], heroCell[1] - 1, row, column)) && world.manhattanDistance(heroCell[0], heroCell[1] - 1, row, column) < range) {
