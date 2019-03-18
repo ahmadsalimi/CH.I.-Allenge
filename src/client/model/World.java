@@ -222,4 +222,13 @@ public interface World {
 
     int getMovePhaseNum();
 
+    int getMaxOvertime();
+
+    int getRemainingOvertime();
+
+    int getInitOvertime();
+
+    int getMaxScoreDiff();
+
+    int getTotalMovePhases();
 }

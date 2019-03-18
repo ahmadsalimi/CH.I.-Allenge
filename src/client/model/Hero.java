@@ -3,7 +3,6 @@ package client.model;
 
 import java.util.ArrayList;
 
-
 public class Hero
 {
     private int id;
@@ -142,7 +141,7 @@ public class Hero
         return currentHP;
     }
 
-    void setCurrentHP(int currentHP)
+    public void setCurrentHP(int currentHP)
     {
         this.currentHP = currentHP;
     }

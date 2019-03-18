@@ -91,6 +91,7 @@ public class RespawnInformation {
 
 
     static public void setTargetCell(World world, boolean[][] objectivePoints, int index) {
+
         final int WALL = 99;
         Map map = world.getMap();
         int row = map.getRowNum(), column = map.getColumnNum();
@@ -107,14 +108,16 @@ public class RespawnInformation {
             }
         }
         cellInformation[respawnInformation.respawnCell[0]][respawnInformation.respawnCell[1]].setCellInfo(0);
+
+        boolean[][] objectivePointsCopy = copyObjectivePoints(objectivePoints, row, column);
+
         int layer = 0;
-        boolean setTarget = false;
         while (true) {
             for (int i = 0; i < row; i++) {
                 for (int j = 0; j < column; j++) {
                     if (cellInformation[i][j].isLayerSet) {
-                        System.out.println(i + ", " + j + " layer = " + layer);
-                        boolean[][] objectivePointsCopy = copyObjectivePoints(objectivePoints, row, column);
+//                        System.out.println(i + ", " + j + " layer = " + layer);
+                        objectivePointsCopy = copyObjectivePoints(objectivePoints, row, column);
                         if (setCellLayers(map, cellInformation, objectivePointsCopy, layer, i, j, index)) {
                             System.out.println("set done!, index = " + index + " target = " + Arrays.toString(AI.respawnInformation[index].getTargetCell()));
                             if (index == 3) {
@@ -123,14 +126,60 @@ public class RespawnInformation {
                             }
                             setTargetCell(world, objectivePointsCopy, index + 1);
                             if (finishTarget) return;
-                            setTarget = true;
                         }
                     }
                 }
             }
-            if (setTarget || layer > 200) break;
+            if (!isAnyObjectivePointsRemaining(objectivePointsCopy, row, column) || layer > 50) break;
             layer++;
         }
+        if (index == 2 && AI.respawnInformation[2].getTargetCell() != null) {
+            setLastTargetCellIfNeeded(world, objectivePoints, row, column);
+        }
+    }
+
+    public static void setObjectivePoints(Map map, boolean[][] objectivePoints) {
+        for (int i = 0; i < map.getRowNum(); i++) {
+            for (int j = 0; j < map.getColumnNum(); j++) {
+                Cell cell = map.getCell(i, j);
+                if (!cell.isWall() && cell.isInObjectiveZone()) {
+                    objectivePoints[i][j] = true;
+                }
+            }
+        }
+    }
+
+    private static void setLastTargetCellIfNeeded(World world, boolean[][] objectivePoints, int row, int column) {
+        setObjectivePoints(world.getMap(), objectivePoints);
+        int maxDistance = 0;
+
+        for (int i = 0; i < row; i++) {
+            Outer:
+            for (int j = 0; j < column; j++) {
+                if (objectivePoints[i][j]) {
+                    int sumOfDistances = 0;
+                    for (int heroIndex = 0; heroIndex < 3; heroIndex++) {
+                        int[] currentCell = {i, j}, otherCell = AI.respawnInformation[heroIndex].getTargetCell();
+                        int distance = world.manhattanDistance(currentCell[0], currentCell[1], otherCell[0], otherCell[1]);
+                        if (distance < 3) continue Outer;
+                        sumOfDistances += distance;
+                    }
+                    if (maxDistance < sumOfDistances) {
+                        maxDistance = sumOfDistances;
+                        AI.respawnInformation[3].setTargetCell(i, j);
+                    }
+                }
+            }
+        }
+    }
+
+    private static boolean isAnyObjectivePointsRemaining(boolean[][] objectivePoints, int row, int column) {
+        for (int i = 0; i < row; i++) {
+            for (int j = 0; j < column; j++) {
+                if (objectivePoints[i][j]) return true;
+            }
+        }
+        return false;
     }
 
     private static boolean[][] copyObjectivePoints(boolean[][] objectivePoints, int row, int column) {

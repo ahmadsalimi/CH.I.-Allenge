@@ -13,7 +13,7 @@ public class HeroConstants {
         return name;
     }
 
-    void setName(HeroName name) {
+    public void setName(HeroName name) {
         this.name = name;
     }
 
@@ -21,7 +21,7 @@ public class HeroConstants {
         return abilityNames;
     }
 
-    void setAbilityNames(AbilityName[] abilityNames) {
+    public void setAbilityNames(AbilityName[] abilityNames) {
         this.abilityNames = abilityNames;
     }
 
@@ -29,7 +29,7 @@ public class HeroConstants {
         return maxHP;
     }
 
-    void setMaxHP(int maxHP) {
+    public void setMaxHP(int maxHP) {
         this.maxHP = maxHP;
     }
 
@@ -37,7 +37,7 @@ public class HeroConstants {
         return moveAPCost;
     }
 
-    void setMoveAPCost(int moveAPCost) {
+    public void setMoveAPCost(int moveAPCost) {
         this.moveAPCost = moveAPCost;
     }
 
@@ -45,7 +45,7 @@ public class HeroConstants {
         return respawnTime;
     }
 
-    void setRespawnTime(int respawnTime) {
+    public void setRespawnTime(int respawnTime) {
         this.respawnTime = respawnTime;
     }
 

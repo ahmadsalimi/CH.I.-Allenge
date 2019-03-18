@@ -2,13 +2,12 @@ package client;
 
 import client.model.*;
 
-import java.sql.Array;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 public class AI {
     private World world;
     private final int WALL = 99;
-    private int[] heroSelect = {0, 4, 0, 0};
     private CellInformation[][] initialCellInformation;
     private int targetRow = 500, targetColumn = 500;
     private int firstRowOfObjectiveZone = 40, lastRowOfObjectiveZone = 0, firstColumnOfObjectiveZone = 40, lastColumnOfObjectiveZone = 0;
@@ -25,6 +24,9 @@ public class AI {
     private static Map map;
     public static RespawnInformation[] respawnInformation = new RespawnInformation[4];
     private boolean isTargetSet = false;
+    private static boolean preProcessDone = false;
+    private static int numberOfObjectivePoints;
+    private static ArrayList<Cell> objectiveZone = new ArrayList<>();
 
     public void preProcess(World world) {
         this.world = world;
@@ -38,8 +40,31 @@ public class AI {
         for (int i = 0; i < 4; i++) {
             respawnInformation[i] = new RespawnInformation(respawnZone[i]);
         }
-        RespawnInformation.setTargetCell(world, objectivePoints, 0);
+
+        if (numberOfObjectivePoints < 30) {
+            setExtremeTargetCell(world);
+        } else {
+            RespawnInformation.setTargetCell(world, objectivePoints, 0);
+        }
         setCellsInformation();
+        preProcessDone = true;
+    }
+
+    private void setExtremeTargetCell(World world) {
+        for (int index = 0; index < 4; index++) {
+            int minDistance = 900;
+            int[] origin = {(index / 2) * (map.getRowNum() - 1), (index % 2) * (map.getColumnNum() - 1)};
+            System.out.println(origin[0] + ", " + origin[1]);
+            for (Cell objectivePoint : objectiveZone) {
+                int[] objective = {objectivePoint.getRow(), objectivePoint.getColumn()};
+                int distance = world.manhattanDistance(objective[0], objective[1], origin[0], origin[1]);
+                System.out.println(objective[0] + ", " + objective[1] + " distance = " + distance);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    respawnInformation[index].setTargetCell(objectivePoint.getRow(), objectivePoint.getColumn());
+                }
+            }
+        }
     }
 
     public static void setObjectivePoints(boolean[][] objectivePoints) {
@@ -48,6 +73,8 @@ public class AI {
                 Cell cell = map.getCell(i, j);
                 if (!cell.isWall() && cell.isInObjectiveZone()) {
                     objectivePoints[i][j] = true;
+                    numberOfObjectivePoints++;
+                    objectiveZone.add(cell);
                 }
             }
         }
@@ -55,32 +82,18 @@ public class AI {
     }
 
     public void pickTurn(World world) {
-        this.world = world;
-        for (int i = 0; i < 4; i++) {
-            if (heroSelect[i] > 0) {
-                heroSelect[i]--;
-                switch (i) {
-                    case 0:
-                        world.pickHero(HeroName.SENTRY);
-                        break;
-                    case 1:
-                        world.pickHero(HeroName.BLASTER);
-                        break;
-                    case 2:
-                        world.pickHero(HeroName.HEALER);
-                        break;
-                    case 3:
-                        world.pickHero(HeroName.GUARDIAN);
-                        break;
-                }
-                break;
-            }
-        }
+        world.pickHero(HeroName.BLASTER);
     }
 
     public void moveTurn(World world) {
         this.world = world;
         currentTurn = world.getCurrentTurn();
+
+        if (!preProcessDone) {
+            setCellsInformation();
+            preProcessDone = true;
+        }
+
         if (!isTargetSet) {
             for (int i = 0; i < 4; i++) {
                 targetCells[world.getMyHero(respawnInformation[i].getRespawnCell()[0], respawnInformation[i].getRespawnCell()[1]).getId() / 2] = map.getCell(respawnInformation[i].getTargetCell()[0], respawnInformation[i].getTargetCell()[1]);
@@ -100,8 +113,8 @@ public class AI {
                 resolveShortageOfAP();
                 break;
             case 5:
-                setWeightForOffensivePlan();
-                setOffensivePlans(currentTurn);
+                //setWeightForOffensivePlan();
+                //setOffensivePlans(currentTurn);
                 break;
         }
 
@@ -132,8 +145,14 @@ public class AI {
                             break;
                     }
                 } else { // out of objective zone
-                    if (world.getMovePhaseNum() == 0)
-                        setFlagDodgeOrWalk(myHero.getDodgeAbilities()[0].getRange());
+                    if (world.getMovePhaseNum() == 0) {
+                        if (myHero.getAbility(AbilityName.BLASTER_DODGE).isReady()) {
+                            CellInformation[][] tempCellInformation = new CellInformation[map.getRowNum()][map.getColumnNum()];
+                            initializeCellInformation(tempCellInformation);
+                            setMyHeroesAsWall(tempCellInformation, myHero.getId() / 2);
+                            setFlagDodgeOrWalk(myHero.getDodgeAbilities()[0].getRange(), tempCellInformation);
+                        }
+                    }
                     switch (blaster.getPlan()) {
                         case DEFAULT:
                             defaultMove(i);
@@ -144,7 +163,6 @@ public class AI {
                 }
             } else {
                 blaster.setPlan(PlanOfBlaster.DEFAULT);
-                blaster.setFirstTimeLayout(false);
                 useFindPath[i] = false;
             }
         }
@@ -152,42 +170,60 @@ public class AI {
 
     public void actionTurn(World world) {
         this.world = world;
-        setWeightForOffensivePlan();
+        Hero[] oppHeroes = world.getOppHeroes();
+        int[] currentHPs = {oppHeroes[0].getCurrentHP(), oppHeroes[1].getCurrentHP(), oppHeroes[2].getCurrentHP(), oppHeroes[3].getCurrentHP()};
+        int currentAp = world.getAP();
         for (int i = 0; i < 4; i++) {
+            setWeightForOffensivePlan(currentHPs);
             myHero = world.getMyHeroes()[i];
             blaster = blasterPlanInformation[i];
-            if (myHero.getCurrentCell().getRow() == -1) continue; // Hero is dead
-            if(blaster.getPlan() == PlanOfBlaster.DEFAULT && myHero.getCurrentCell().isInObjectiveZone()) {
-                if (currentTurn % 4 == (i + 1) % 4) {
+            Ability bombAbility = myHero.getAbility(AbilityName.BLASTER_BOMB);
+            Ability attackAbility = myHero.getAbility(AbilityName.BLASTER_ATTACK);
+            if (myHero.getCurrentCell().getRow() == -1 || myHero.getCurrentCell().getColumn() == -1) continue; // Hero is dead
+            if (blaster.getPlan() == PlanOfBlaster.DODGE) {
+                int[] targetCell = blaster.getDodgeTargetCell();
+                System.out.println("casting dodge for hero " + myHero.getId() + " from [" + myHero.getCurrentCell().getRow() + ", " + myHero.getCurrentCell().getColumn() + "] to " + Arrays.toString(targetCell));
+                world.castAbility(myHero, myHero.getDodgeAbilities()[0], targetCell[0], targetCell[1]);
+                blaster.setPlan(PlanOfBlaster.DEFAULT);
+
+            } else if (myHero.getCurrentCell().isInObjectiveZone()) {
+
+                if (bombAbility.isReady() && currentAp >= bombAbility.getAPCost()) {
                     //Blaster Bomb
-                    blasterPlanInformation[i].setPlanOfBlaster(world, myHero, PlanOfBlaster.BOMB, weightsOfBomb, 5);
-                } else {
-                    //Blaster Attack
-                    blasterPlanInformation[i].setPlanOfBlaster(world, myHero, PlanOfBlaster.ATTACK, weightsOfAttack, 4);
-                }
-            }
-            switch (blaster.getPlan()) {
-                case DODGE:
-                    world.castAbility(myHero, myHero.getDodgeAbilities()[0], blaster.getDodgeTargetCell()[0], blaster.getDodgeTargetCell()[1]);
-                    blaster.setPlan(PlanOfBlaster.DEFAULT);
-                    break;
-                case ATTACK:
-                case BOMB:
-                    if (currentTurn % 4 == (i + 1) % 4) {
-                        //Blaster Bomb
-                        blasterPlanInformation[i].setPlanOfBlaster(world, myHero, PlanOfBlaster.BOMB, weightsOfBomb, 5);
-                    } else {
-                        //Blaster Attack
-                        blasterPlanInformation[i].setPlanOfBlaster(world, myHero, PlanOfBlaster.ATTACK, weightsOfAttack, 4);
+                    blaster.setPlanOfBlaster(world, myHero, PlanOfBlaster.BOMB, weightsOfBomb, bombAbility.getRange());
+                    if (blaster.getPlan() != PlanOfBlaster.DEFAULT) {
+                        currentAp -= bombAbility.getAPCost();
                     }
-                    blasterAction(myHero);
-                    break;
+                } else if (currentAp >= attackAbility.getAPCost()) {
+                    //Blaster Attack
+                    blaster.setPlanOfBlaster(world, myHero, PlanOfBlaster.ATTACK, weightsOfAttack, attackAbility.getRange());
+                    if (blaster.getPlan() != PlanOfBlaster.DEFAULT) {
+                        currentAp -= attackAbility.getAPCost();
+                    }
+                } else {
+                    blaster.setPlan(PlanOfBlaster.DEFAULT);
+                }
+                if (blaster.getPlan() != PlanOfBlaster.DEFAULT) {
+                    blasterAction(myHero, currentHPs);
+                }
+
             }
         }
     }
 
     private int absolute(int x) {
         return x >= 0 ? x : -x;
+    }
+
+    private int calculateTargetDistanceForDodge(int[] currentCellArray, int maxTargetDistance, int[] finalTargetCell, int row, int column, CellInformation[][] cellInformation) {
+        if (map.isInMap(row, column) && cellInformation[row][column].layerNumber != WALL && !initialCellInformation[row][column].isReservedForDodge) {
+            if (maxTargetDistance <= initialCellInformation[currentCellArray[0]][currentCellArray[1]].layerNumber - initialCellInformation[row][column].layerNumber) {
+                maxTargetDistance = initialCellInformation[currentCellArray[0]][currentCellArray[1]].layerNumber - initialCellInformation[row][column].layerNumber;
+                finalTargetCell[0] = row;
+                finalTargetCell[1] = column;
+            }
+        }
+        return maxTargetDistance;
     }
 
     private int calculateTargetDistanceForDodge(int[] currentCellArray, int maxTargetDistance, int[] finalTargetCell, int row, int column) {
@@ -199,6 +235,27 @@ public class AI {
             }
         }
         return maxTargetDistance;
+    }
+
+    private void setFlagDodgeOrWalk(int range, CellInformation[][] cellInformation) {
+        map = world.getMap();
+        blaster = blasterPlanInformation[myHero.getId() / 2];
+        int[] currentCellArray = {myHero.getCurrentCell().getRow(), myHero.getCurrentCell().getColumn()};
+        int maxTargetDistance = 0;
+        int[] finalTargetCell = new int[2];
+        for (int column = currentCellArray[1] - range; column <= currentCellArray[1] + range; column++) {
+            int rowUp = currentCellArray[0] + range - absolute(column - currentCellArray[1]);
+            maxTargetDistance = calculateTargetDistanceForDodge(currentCellArray, maxTargetDistance, finalTargetCell, rowUp, column, cellInformation);
+            int rowDown = currentCellArray[0] - range + absolute(column - currentCellArray[1]);
+            maxTargetDistance = calculateTargetDistanceForDodge(currentCellArray, maxTargetDistance, finalTargetCell, rowDown, column, cellInformation);
+        }
+        blaster.setPlan(PlanOfBlaster.DEFAULT);
+        if (maxTargetDistance > 6) {
+            blaster.setDodgeTargetCell(finalTargetCell);
+            blaster.setPlan(PlanOfBlaster.DODGE);
+            initialCellInformation[finalTargetCell[0]][finalTargetCell[1]].isReservedForDodge = true;
+            System.out.println("Hero " + myHero.getId() + "'s plan is dodge at action. from " + Arrays.toString(currentCellArray) + " to " + Arrays.toString(finalTargetCell));
+        }
     }
 
     private void setFlagDodgeOrWalk(int range) {
@@ -382,32 +439,37 @@ public class AI {
     private void printWeights(int[][] weights) {
         for (int row = firstRowOfObjectiveZone; row <= lastRowOfObjectiveZone; row++) {
             for (int column = firstColumnOfObjectiveZone; column <= lastColumnOfObjectiveZone; column++) {
-                System.out.print(weights[row][column] + " ");
+                System.out.printf("%2d ", weights[row][column]);
             }
             System.out.println();
         }
     }
 
-    private void increaseCellWeight(int[][] weights, int[] cell, int currentHP, int maxHP, int areaOfEffect) {
+    private void increaseCellWeight(int[][] weights, int[] cell, int currentHP, int maxHP, int areaOfEffect, int decreaseHealerWeight) {
         for (int column = cell[1] - areaOfEffect; column <= cell[1] + areaOfEffect; column++) { // attack
             int rowDown = cell[0] + (areaOfEffect - absolute(column - cell[1]));
             int rowUp = cell[0] - (areaOfEffect - absolute(column - cell[1]));
             for (int row = rowUp; row <= rowDown; row++) {
-                weights[row][column] += 20 - 10 * (maxHP - currentHP) / maxHP;
+                weights[row][column] += 20 - 10 * (currentHP) / maxHP - decreaseHealerWeight;
             }
         }
     }
 
-    private void setWeightForOffensivePlan() {
+    private void setWeightForOffensivePlan(int[] currentHPs) {
         weightsOfAttack = new int[world.getMap().getRowNum()][world.getMap().getColumnNum()];
         weightsOfBomb = new int[world.getMap().getRowNum()][world.getMap().getColumnNum()];
         final int attackAOE = world.getMyHeroes()[0].getAbility(AbilityName.BLASTER_ATTACK).getAreaOfEffect();
         final int bombAOE = world.getMyHeroes()[0].getAbility(AbilityName.BLASTER_BOMB).getAreaOfEffect();
         for (Hero enemyHero : world.getOppHeroes()) {
+            int decreaseHealerWeight = 0;
+            if (enemyHero.getName() == HeroName.HEALER) {
+                decreaseHealerWeight = 5;
+            }
             int[] cell = {enemyHero.getCurrentCell().getRow(), enemyHero.getCurrentCell().getColumn()};
-            if (cell[0] == -1) continue; // Hero is dead!
-            increaseCellWeight(weightsOfAttack, cell, enemyHero.getCurrentHP(), enemyHero.getMaxHP(), attackAOE);
-            increaseCellWeight(weightsOfBomb, cell, enemyHero.getCurrentHP(), enemyHero.getMaxHP(), bombAOE);
+            if (cell[0] == -1 || currentHPs[enemyHero.getId() / 2] <= 0) continue; // Hero is dead!
+
+            increaseCellWeight(weightsOfAttack, cell, currentHPs[enemyHero.getId() / 2], enemyHero.getMaxHP(), attackAOE, decreaseHealerWeight);
+            increaseCellWeight(weightsOfBomb, cell, currentHPs[enemyHero.getId() / 2], enemyHero.getMaxHP(), bombAOE, decreaseHealerWeight);
         }
         System.out.println("Weight Of Attack:");
         printWeights(weightsOfAttack);
@@ -435,9 +497,6 @@ public class AI {
                     System.out.println(myHero.getId() + " " + nextDirection);
                     blaster.setMoveNum(currentMoveNum - 1);
                 }
-            } else {
-                if (!blaster.isFirstTimeLayout()) blaster.setFirstTimeLayout(true);
-                System.out.println("in Position");
             }
         }
     }
@@ -507,12 +566,21 @@ public class AI {
         }
     }
 
-    private void blasterAction(Hero myHero) {
+    private void blasterAction(Hero myHero, int[] currentHPs) {
         blaster = blasterPlanInformation[myHero.getId() / 2];
         int[] currentCellArray = {myHero.getCurrentCell().getRow(), myHero.getCurrentCell().getColumn()};
         int[] targetCellArray = blaster.getOffensiveTargetCell();
         world.castAbility(myHero, blaster.getAbilityName(), targetCellArray[0], targetCellArray[1]);
+        for (Hero enemyHero : world.getOppHeroes()) {
+            if (enemyHero.getCurrentCell().getRow() < 0 || enemyHero.getCurrentCell().getColumn() < 0)
+                continue;
+            if (world.manhattanDistance(enemyHero.getCurrentCell().getRow(), enemyHero.getCurrentCell().getColumn(), targetCellArray[0], targetCellArray[1]) <= myHero.getAbility(blaster.getAbilityName()).getAreaOfEffect()) {
+                currentHPs[enemyHero.getId() / 2] -= myHero.getAbility(blaster.getAbilityName()).getPower();
+            }
+        }
         System.out.println("Turn " + world.getCurrentTurn() + ", Cast ability for Hero " + myHero.getId() + " done:\n" + blaster.getAbilityName() + " from (" + currentCellArray[0] + ", " + currentCellArray[1] + ") to (" + targetCellArray[0] + ", " + targetCellArray[1] + ")");
         blaster.setPlan(PlanOfBlaster.DEFAULT);
     }
+
+
 }

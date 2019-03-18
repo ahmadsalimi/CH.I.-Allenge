@@ -7,7 +7,6 @@ public class BlasterPlanInformation {
     private int[] objectiveTargetCell = new int[2];
     private int rangeOfCasting;
     private AbilityName abilityName;
-    private boolean firstTimeLayout = false;
     private int moveNum;
     private int[] currentCell = new int[2];
     private boolean setAsWall;
@@ -22,10 +21,6 @@ public class BlasterPlanInformation {
 
     public boolean isSetAsWall() {
         return setAsWall;
-    }
-
-    public boolean isFirstTimeLayout() {
-        return firstTimeLayout;
     }
 
     public AbilityName getAbilityName() {
@@ -54,10 +49,6 @@ public class BlasterPlanInformation {
 
     public int getMoveNum() {
         return moveNum;
-    }
-
-    public void setFirstTimeLayout(boolean firstTimeLayout) {
-        this.firstTimeLayout = firstTimeLayout;
     }
 
     private void setRangeOfCasting(int rangeOfCasting) {
@@ -108,18 +99,11 @@ public class BlasterPlanInformation {
             int rowDown = heroCell[0] + (rangeOfCasting - absolute(column - heroCell[1]));
             int rowUp = heroCell[0] - (rangeOfCasting - absolute(column - heroCell[1]));
             for (int row = rowUp; row <= rowDown; row++) {
-                if ((currentPlan == PlanOfBlaster.BOMB || world.isInVision(heroCell[0], heroCell[1], row, column)) && world.manhattanDistance(heroCell[0], heroCell[1], row, column) < minDistance) {
+                if ((currentPlan == PlanOfBlaster.BOMB || world.isInVision(heroCell[0], heroCell[1], row, column))) {
                     if (weights[row][column] > maxWeight) {
                         maxWeight = weights[row][column];
-                        minDistance = world.manhattanDistance(heroCell[0], heroCell[1], row, column);
                         bestCell[0] = row;
                         bestCell[1] = column;
-                    } else if (weights[row][column] == maxWeight) {
-                        if (world.manhattanDistance(heroCell[0], heroCell[1], row, column) < minDistance) {
-                            minDistance = world.manhattanDistance(heroCell[0], heroCell[1], row, column);
-                            bestCell[0] = row;
-                            bestCell[1] = column;
-                        }
                     }
                 }
             }
@@ -146,7 +130,7 @@ public class BlasterPlanInformation {
         int[] heroCell = {hero.getCurrentCell().getRow(), hero.getCurrentCell().getColumn()};
         switch (currentPlan) {
             case ATTACK:
-                this.setRangeOfCasting(4);
+                this.setRangeOfCasting(3);
                 break;
             case BOMB:
                 this.setRangeOfCasting(5);
@@ -251,7 +235,7 @@ public class BlasterPlanInformation {
         else {
             this.setPlan(currentPlan);
             this.setOffensiveTargetCell(bestCell);
-            if (nextDirection != null) world.moveHero(hero, nextDirection);
+            //if (nextDirection != null) world.moveHero(hero, nextDirection); // TODO: make it smarter. it may conflict
         }
         System.out.println("Hero" + hero.getId() + "'s plan: " + this.getPlan());
     }
