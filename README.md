@@ -1,1 +1,2 @@
-# AIC2019-Client-Java
+### server part:
+#### [see repository](https://github.com/SharifAIChallenge/AIC19-Server)
