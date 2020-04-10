@@ -19,6 +19,7 @@ public class AI {
     private int currentAP = 100;
     private int currentTurn;
     private Hero myHero;
+
     private Cell currentCell;
     private BlasterPlanInformation blaster;
     private static Map map;
