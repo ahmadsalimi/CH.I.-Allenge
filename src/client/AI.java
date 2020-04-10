@@ -76,6 +76,7 @@ public class AI {
                     objectivePoints[i][j] = true;
                     numberOfObjectivePoints++;
                     objectiveZone.add(cell);
+
                 }
             }
         }
